@@ -11,6 +11,8 @@ cytoscape.use(dagre);
 /** Life size. A graph too small to fill the pane is shown small rather than magnified. */
 const MAX_ZOOM_ON_FIT = 1;
 const FIT_PADDING = 40;
+/** The least zoom at which a card's text can still be read. */
+const READABLE_ZOOM = 0.75;
 
 export type Selection = { kind: 'resource' | 'link'; id: string } | null;
 
@@ -22,8 +24,37 @@ export type RdfGraphHandle = {
 type Props = {
   graph: RdfGraphModel;
   selection: Selection;
+  /** An edge was clicked, or the background (`null`). */
   onSelect: (selection: Selection) => void;
+  /** A card was clicked. */
+  onOpenResource: (id: string) => void;
+  /** Given in a focused view, where cards can be taken off screen again. */
+  onCloseResource?: (id: string) => void;
+  /** The background was double-clicked. */
+  onReset: () => void;
+  hiddenNeighbors: (id: string) => number;
+  view: ViewRequest;
   ref?: Ref<RdfGraphHandle>;
+};
+
+/**
+ * How the next graph should be placed on screen. By default it keeps the zoom of the last one, and
+ * `anchorId` stays where it was on screen, so expanding or closing a card doesn't throw the view
+ * somewhere else.
+ */
+export type ViewRequest = {
+  /** Changed to ask for the next graph to be fitted to the screen instead. */
+  fitKey: number;
+  anchorId?: string;
+  /** Zoom in around the anchor if the cards would be too small to read, as after the whole graph. */
+  readable?: boolean;
+};
+
+/** Where the last graph was on screen, for the next one to line up with. */
+type ViewSnapshot = {
+  zoom: number;
+  rendered: Map<string, { x: number; y: number }>;
+  fitKey: number;
 };
 
 /**
@@ -31,13 +62,25 @@ type Props = {
  * React elements in a layer above the canvas, moved to match. The nodes Cytoscape knows about are
  * invisible boxes the size of their card, so edges meet the card's edge rather than its centre.
  */
-export function RdfGraph({ graph, selection, onSelect, ref }: Props) {
+export function RdfGraph({
+  graph,
+  selection,
+  onSelect,
+  onOpenResource,
+  onCloseResource,
+  onReset,
+  hiddenNeighbors,
+  view,
+  ref,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const layerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
-  const onSelectRef = useRef(onSelect);
+  const lastView = useRef<ViewSnapshot | null>(null);
+  // Read by Cytoscape's listeners, which are bound once per graph rather than once per render.
+  const handlers = useRef({ onSelect, onOpenResource, onReset });
   useEffect(() => {
-    onSelectRef.current = onSelect;
+    handlers.current = { onSelect, onOpenResource, onReset };
   });
 
   useLayoutEffect(() => {
@@ -96,16 +139,20 @@ export function RdfGraph({ graph, selection, onSelect, ref }: Props) {
       fit: false,
       animate: false,
     } as cytoscape.LayoutOptions).run();
-    fitView(cy);
+    const previous = lastView.current;
+    if (!previous || previous.fitKey !== view.fitKey || !keepView(cy, previous, view)) fitView(cy);
     cy.nodes().forEach(syncNode);
     syncViewport();
 
     cy.on('viewport', syncViewport);
     cy.on('position', 'node', (event) => syncNode(event.target));
-    cy.on('tap', 'node', (event) => onSelectRef.current({ kind: 'resource', id: event.target.id() }));
-    cy.on('tap', 'edge', (event) => onSelectRef.current({ kind: 'link', id: event.target.id() }));
+    cy.on('tap', 'node', (event) => handlers.current.onOpenResource(event.target.id()));
+    cy.on('tap', 'edge', (event) => handlers.current.onSelect({ kind: 'link', id: event.target.id() }));
     cy.on('tap', (event) => {
-      if (event.target === cy) onSelectRef.current(null);
+      if (event.target === cy) handlers.current.onSelect(null);
+    });
+    cy.on('dbltap', (event) => {
+      if (event.target === cy) handlers.current.onReset();
     });
     cy.on('mouseover', 'node, edge', () => (container.style.cursor = 'pointer'));
     cy.on('mouseout', 'node, edge', () => (container.style.cursor = ''));
@@ -117,9 +164,16 @@ export function RdfGraph({ graph, selection, onSelect, ref }: Props) {
 
     return () => {
       colorScheme.removeEventListener('change', restyle);
+      lastView.current = {
+        zoom: cy.zoom(),
+        rendered: new Map(cy.nodes().map((node) => [node.id(), { ...node.renderedPosition() }])),
+        fitKey: view.fitKey,
+      };
       cy.destroy();
       cyRef.current = null;
     };
+    // Only a new graph rebuilds the view; `view` is read as it stands when that happens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graph]);
 
   useEffect(() => {
@@ -156,7 +210,15 @@ export function RdfGraph({ graph, selection, onSelect, ref }: Props) {
       <div ref={containerRef} className="graph__canvas" />
       <div ref={layerRef} className="graph__cards">
         {graph.resources.map((resource) => (
-          <ResourceCard key={resource.id} resource={resource} selected={resource.id === selectedResource} />
+          <ResourceCard
+            key={resource.id}
+            resource={resource}
+            typeColors={graph.typeColors}
+            selected={resource.id === selectedResource}
+            showTypes={!graph.typesAsLinks}
+            hiddenNeighbors={hiddenNeighbors(resource.id)}
+            onClose={onCloseResource && (() => onCloseResource(resource.id))}
+          />
         ))}
       </div>
       <div className="graph__controls">
@@ -177,6 +239,40 @@ export function RdfGraph({ graph, selection, onSelect, ref }: Props) {
       </div>
     </div>
   );
+}
+
+/**
+ * Keep the previous zoom and put a node that was on screen before back where it was: the anchor if
+ * it is still there, otherwise any survivor. False when nothing carried over to line up with.
+ */
+function keepView(cy: Core, previous: ViewSnapshot, view: ViewRequest): boolean {
+  const candidates = [view.anchorId, ...previous.rendered.keys()].filter(
+    (id): id is string => id !== undefined && previous.rendered.has(id),
+  );
+  const anchor = candidates.map((id) => cy.getElementById(id)).find((node) => node.nonempty());
+  if (!anchor) return false;
+  const was = previous.rendered.get(anchor.id())!;
+  const now = anchor.position();
+  const zoom = view.readable ? Math.max(previous.zoom, READABLE_ZOOM) : previous.zoom;
+  cy.zoom(zoom);
+  cy.pan({ x: was.x - now.x * zoom, y: was.y - now.y * zoom });
+  if (view.readable) nudgeIntoView(cy);
+  return true;
+}
+
+/**
+ * Pan by as little as it takes to get the whole graph on screen, where it fits at this zoom. A
+ * neighbourhood opened near the edge of the screen otherwise hangs off it.
+ */
+function nudgeIntoView(cy: Core) {
+  const box = cy.elements().renderedBoundingBox();
+  const shift = (low: number, high: number, size: number) => {
+    if (high - low > size - 2 * FIT_PADDING) return 0;
+    if (low < FIT_PADDING) return FIT_PADDING - low;
+    if (high > size - FIT_PADDING) return size - FIT_PADDING - high;
+    return 0;
+  };
+  cy.panBy({ x: shift(box.x1, box.x2, cy.width()), y: shift(box.y1, box.y2, cy.height()) });
 }
 
 function fitView(cy: Core) {

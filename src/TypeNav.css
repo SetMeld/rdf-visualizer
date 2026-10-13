@@ -1,0 +1,148 @@
+.type-nav {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+}
+
+.type-nav__search {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.type-nav__search input {
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.type-nav__search input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.type-nav__hint {
+  padding: 6px 10px 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.type-nav__groups,
+.type-nav__members {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.type-nav__groups {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 6px 12px;
+}
+
+.type-nav__type {
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+}
+
+.type-nav__type:hover {
+  background: var(--row-bg);
+}
+
+.type-nav__type--active,
+.type-nav__type--active:hover {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.type-nav button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.type-nav__chevron {
+  flex: none;
+  width: 22px;
+  height: 28px;
+  padding: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.type-nav__name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 6px 5px 0;
+}
+
+.type-nav__swatch {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+
+.type-nav__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-strong);
+}
+
+.type-nav__count {
+  flex: none;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.type-nav__members {
+  margin: 0 0 4px 22px;
+  border-left: 1px solid var(--border);
+}
+
+.type-nav__member {
+  display: block;
+  width: 100%;
+  padding: 3px 8px;
+  border-radius: 0 4px 4px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+
+.type-nav__member:hover {
+  background: var(--row-bg);
+  color: var(--text-strong);
+}
+
+.type-nav__member--selected {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.type-nav__more {
+  padding: 4px 8px;
+  font-size: 11.5px;
+  font-style: italic;
+  color: var(--text-muted);
+}

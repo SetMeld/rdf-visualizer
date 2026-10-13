@@ -53,7 +53,8 @@ describe('parseTurtle', () => {
     expect(asChips.resources.some((r) => r.name === 'foaf:Person')).toBe(false);
 
     const asLinks = parse(TTL, true);
-    expect(asLinks.resources.find((r) => r.name === 'ex:alice')!.types).toEqual([]);
+    // Still recorded, so resources can be grouped by type either way.
+    expect(asLinks.resources.find((r) => r.name === 'ex:alice')!.types.map((t) => t.label)).toEqual(['foaf:Person']);
     expect(asLinks.links.some((l) => l.predicate.label === 'rdf:type' && l.target.endsWith('Person'))).toBe(true);
   });
 

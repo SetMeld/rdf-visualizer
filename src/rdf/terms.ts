@@ -29,9 +29,13 @@ export function compactIri(iri: string, prefixes: Prefixes): string {
   return `${best.prefix}:${local}`;
 }
 
-const PALETTE = ['#3b82f6', '#22c55e', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#ef4444', '#14b8a6'];
+/** Ordered so that neighbours in the list are easy to tell apart: the most common types get the first few. */
+export const PALETTE = [
+  '#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899',
+  '#06b6d4', '#84cc16', '#f97316', '#14b8a6', '#6366f1', '#d946ef',
+];
 
-/** A stable color for a class or predicate, so the same IRI looks the same everywhere it appears. */
+/** A stable color for a predicate, so the same IRI looks the same everywhere it appears. */
 export function colorFor(iri: string): string {
   let hash = 0;
   for (let i = 0; i < iri.length; i += 1) {

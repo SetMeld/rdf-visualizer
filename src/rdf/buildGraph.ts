@@ -1,5 +1,5 @@
 import { Parser, type Quad, type Term } from 'n3';
-import { compactIri, type Prefixes } from './terms';
+import { PALETTE, compactIri, type Prefixes } from './terms';
 
 const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
 const XSD_STRING = 'http://www.w3.org/2001/XMLSchema#string';
@@ -40,7 +40,7 @@ export type Resource = {
   name: string;
   /** A human label taken from rdfs:label, skos:prefLabel, schema:name and the like, if it has one. */
   displayLabel?: string;
-  /** rdf:type objects shown on the card rather than drawn as links. */
+  /** rdf:type objects. Shown on the card, and also drawn as links when `typesAsLinks` is set. */
   types: IriRef[];
   literals: LiteralRow[];
 };
@@ -58,6 +58,9 @@ export type RdfGraph = {
   links: Link[];
   prefixes: Prefixes;
   tripleCount: number;
+  typesAsLinks: boolean;
+  /** Each rdf:type's color, handed out by how common the type is so the main ones never clash. */
+  typeColors: Record<string, string>;
 };
 
 export type BuildOptions = {
@@ -123,11 +126,11 @@ export function buildGraph(quads: Quad[], prefixes: Prefixes, options: BuildOpti
 
     if (object.termType !== 'NamedNode' && object.termType !== 'BlankNode') continue;
 
-    if (predicate.value === RDF_TYPE && !typesAsLinks && object.termType === 'NamedNode') {
+    if (predicate.value === RDF_TYPE && object.termType === 'NamedNode') {
       if (!resource.types.some((type) => type.iri === object.value)) {
         resource.types.push(iriRef(object.value));
       }
-      continue;
+      if (!typesAsLinks) continue;
     }
 
     const target = resourceFor(object);
@@ -142,7 +145,24 @@ export function buildGraph(quads: Quad[], prefixes: Prefixes, options: BuildOpti
     resource.displayLabel = pickDisplayLabel(resource.literals);
   }
 
-  return { resources: [...resources.values()], links, prefixes, tripleCount: quads.length };
+  const resourceList = [...resources.values()];
+  return {
+    resources: resourceList,
+    links,
+    prefixes,
+    tripleCount: quads.length,
+    typesAsLinks,
+    typeColors: assignTypeColors(resourceList),
+  };
+}
+
+function assignTypeColors(resources: Resource[]): Record<string, string> {
+  const counts = new Map<string, number>();
+  for (const resource of resources) {
+    for (const type of resource.types) counts.set(type.iri, (counts.get(type.iri) ?? 0) + 1);
+  }
+  const ranked = [...counts.keys()].sort((a, b) => counts.get(b)! - counts.get(a)! || a.localeCompare(b));
+  return Object.fromEntries(ranked.map((iri, i) => [iri, PALETTE[i % PALETTE.length]]));
 }
 
 function termId(term: Term): string {

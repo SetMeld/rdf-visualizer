@@ -44,8 +44,9 @@
 }
 
 .card__header {
+  position: relative;
   background: var(--untyped-header);
-  padding: 8px 10px;
+  padding: 8px 28px;
   min-height: 20px;
   display: flex;
   align-items: center;
@@ -63,6 +64,42 @@
 /* A resource only ever seen as an object: nothing to say about it but its name. */
 .card--bare {
   opacity: 0.85;
+}
+
+/* Header corner controls sit on the colour, so they share the title's dark pill backing. */
+.card__badge,
+.card__close {
+  position: absolute;
+  top: 5px;
+  height: 18px;
+  min-width: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.38);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.card__badge {
+  left: 5px;
+  padding: 0 4px;
+}
+
+/* The only part of a card that takes the pointer; everything else falls through to the canvas. */
+.card__close {
+  right: 5px;
+  padding: 0;
+  border: 0;
+  font-size: 14px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.card__close:hover {
+  background: rgba(0, 0, 0, 0.65);
 }
 
 /* A translucent pill, so the title stays readable over any type colour or stripe. */

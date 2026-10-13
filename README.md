@@ -2,6 +2,17 @@
 
 A client-side React app (Vite + TypeScript) with no back-end, deployed to GitHub Pages.
 
+## Using it
+
+Paste Turtle into the editor. Each subject becomes a card listing its literal values, with arrows to
+the other resources it links to.
+
+- **Click a card** to show only it and its neighbours. Click a neighbour to bring in its neighbours
+  too, and **×** on a card to hide it. A **+N** badge counts a card's neighbours still hidden.
+- **The type list** on the left filters to one type and its neighbours (⌘/Ctrl-click to add more
+  types). Expand a type to list its resources; click one to focus on it.
+- **Esc**, double-clicking the background, or **Whole graph** returns to the full graph.
+
 ## Development
 
 ```sh

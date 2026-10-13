@@ -1,11 +1,18 @@
 import type { Resource } from '../rdf/buildGraph';
-import { colorFor, stripes } from '../rdf/terms';
+import { stripes } from '../rdf/terms';
 
 export const CARD_WIDTH = 260;
 
 type Props = {
   resource: Resource;
+  typeColors: Record<string, string>;
   selected: boolean;
+  /** Off when rdf:type is already drawn as links, which would say the same thing twice. */
+  showTypes: boolean;
+  /** Neighbours not on screen; clicking the card brings them in. */
+  hiddenNeighbors: number;
+  /** Given in a focused view, where a card can be taken off screen again. */
+  onClose?: () => void;
 };
 
 /**
@@ -13,9 +20,10 @@ type Props = {
  *
  * Positioned by RdfGraph, which moves it to wherever Cytoscape has put the node underneath.
  */
-export function ResourceCard({ resource, selected }: Props) {
-  const headerColors = resource.types.length > 0 ? resource.types.map((type) => colorFor(type.iri)) : undefined;
-  const hasBody = resource.types.length > 0 || resource.literals.length > 0;
+export function ResourceCard({ resource, typeColors, selected, showTypes, hiddenNeighbors, onClose }: Props) {
+  const headerColors = resource.types.length > 0 ? resource.types.map((type) => typeColors[type.iri]) : undefined;
+  const typeChips = showTypes ? resource.types : [];
+  const hasBody = typeChips.length > 0 || resource.literals.length > 0;
 
   return (
     <div
@@ -29,6 +37,16 @@ export function ResourceCard({ resource, selected }: Props) {
       style={{ width: CARD_WIDTH }}
     >
       <div className="card__header" style={headerColors ? { background: stripes(headerColors) } : undefined}>
+        {hiddenNeighbors > 0 && (
+          <span className="card__badge" title={`${hiddenNeighbors} more connected — click to show`}>
+            +{hiddenNeighbors}
+          </span>
+        )}
+        {onClose && (
+          <button type="button" className="card__close" onClick={onClose} title="Hide" aria-label="Hide">
+            ×
+          </button>
+        )}
         <div className="card__title">
           {resource.displayLabel ? (
             <>
@@ -47,10 +65,10 @@ export function ResourceCard({ resource, selected }: Props) {
       </div>
       {hasBody && (
         <div className="card__body">
-          {resource.types.length > 0 && (
+          {typeChips.length > 0 && (
             <div className="card__types">
-              {resource.types.map((type) => (
-                <span key={type.iri} className="chip" style={{ borderColor: colorFor(type.iri) }}>
+              {typeChips.map((type) => (
+                <span key={type.iri} className="chip" style={{ borderColor: typeColors[type.iri] }}>
                   {type.label}
                 </span>
               ))}
