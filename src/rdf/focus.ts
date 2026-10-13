@@ -83,16 +83,16 @@ export function close(focus: Focus, id: string): Focus {
   return visible.size > 0 ? { visible, types: focus.types } : null;
 }
 
-/** Resources of any of `types`, and their neighbours. No types means the whole graph. */
-export function filterByTypes(types: readonly string[], groups: TypeGroup[], neighbors: Neighbors): Focus {
+/**
+ * Resources of any of `types`, collapsed: their neighbours stay hidden until a card is clicked to
+ * expand it. No types means the whole graph.
+ */
+export function filterByTypes(types: readonly string[], groups: TypeGroup[]): Focus {
   if (types.length === 0) return null;
   const visible = new Set<string>();
   for (const group of groups) {
     if (!types.includes(group.key)) continue;
-    for (const member of group.members) {
-      visible.add(member.id);
-      neighbors.get(member.id)?.forEach((neighbor) => visible.add(neighbor));
-    }
+    for (const member of group.members) visible.add(member.id);
   }
   return { visible, types };
 }

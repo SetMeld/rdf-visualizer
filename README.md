@@ -11,8 +11,8 @@ the other resources it links to.
 
 - **Click a card** to show only it and its neighbours. Click a neighbour to bring in its neighbours
   too, and **×** on a card to hide it. A **+N** badge counts a card's neighbours still hidden.
-- **The type list** on the left filters to one type and its neighbours (⌘/Ctrl-click to add more
-  types). Expand a type to list its resources; click one to focus on it.
+- **The type list** on the left filters to the resources of one type, collapsed, so their
+  neighbours stay hidden until you click a card (⌘/Ctrl-click to add more types). Expand a type to list its resources; click one to focus on it.
 - **Esc**, double-clicking the background, or **Whole graph** returns to the full graph.
 
 ## Development

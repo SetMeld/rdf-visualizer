@@ -118,7 +118,7 @@ export default function App() {
         ? [] // Clicking the only active type again turns the filter off.
         : [key];
     refit();
-    setFocus(filterByTypes(types, typeGroups, neighbors));
+    setFocus(filterByTypes(types, typeGroups));
     setSelection(null);
   };
 

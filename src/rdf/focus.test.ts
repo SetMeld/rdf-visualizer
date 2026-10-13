@@ -51,15 +51,16 @@ describe('focus', () => {
     expect(close(focus, iri('e'))).toBeNull();
   });
 
-  it('filters to a type and its neighbours', () => {
+  it('filters to just the resources of a type', () => {
     const groups = groupByType(g);
     expect(groups.map((group) => [group.type?.label ?? UNTYPED, group.members.length])).toEqual([
       [':Person', 2],
       [':Org', 1],
       [UNTYPED, 2],
     ]);
-    expect(ids(filterByTypes([iri('Org')], groups, neighbors)?.visible)).toEqual(['a', 'b', 'c']);
-    expect(filterByTypes([], groups, neighbors)).toBeNull();
+    expect(ids(filterByTypes([iri('Org')], groups)?.visible)).toEqual(['b']);
+    expect(ids(filterByTypes([iri('Org'), iri('Person')], groups)?.visible)).toEqual(['a', 'b', 'c']);
+    expect(filterByTypes([], groups)).toBeNull();
   });
 
   it('draws only links between visible resources and counts what is hidden', () => {
