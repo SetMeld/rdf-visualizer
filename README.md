@@ -2,6 +2,8 @@
 
 A client-side React app (Vite + TypeScript) with no back-end, deployed to GitHub Pages.
 
+**Live site:** https://setmeld.github.io/rdf-visualizer/
+
 ## Using it
 
 Paste Turtle into the editor. Each subject becomes a card listing its literal values, with arrows to
