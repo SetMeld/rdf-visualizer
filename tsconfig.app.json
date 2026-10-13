@@ -22,5 +22,7 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  // Reference code from another project, kept for inspiration only; not part of this app.
+  "exclude": ["src/GlobalSchemaGraph"]
 }

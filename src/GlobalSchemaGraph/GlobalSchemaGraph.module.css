@@ -1,0 +1,294 @@
+/*
+ * The palette this file is written against, in terms of the app's own.
+ *
+ * The rules below ask for --bg-tertiary, --text-primary and a dozen others, which nothing defines:
+ * an undefined custom property resolves to nothing at all, so every one of them was silently
+ * transparent or inherited. That is why the popup read as black text on whatever was behind it.
+ *
+ * Declared here rather than globally, because they are this component's vocabulary and not the
+ * app's. Pointing them at the app's tokens rather than at colours is what makes the graph follow
+ * light and dark mode without knowing that either exists.
+ */
+.graphContainer {
+  --bg-primary: transparent;
+  --bg-secondary: var(--card);
+  --bg-tertiary: var(--popover);
+  --text-primary: var(--foreground);
+  --text-tertiary: var(--muted-foreground);
+  --text-muted: var(--muted-foreground);
+  --border-primary: var(--border);
+  --border-secondary: var(--border);
+  --accent-primary: var(--primary);
+  --accent-hover: var(--ring);
+  --success: oklch(0.62 0.14 155);
+  --warning: oklch(0.72 0.15 75);
+  --shadow-lg: 0 4px 12px oklch(0 0 0 / 0.12);
+  --shadow-xl: 0 12px 32px oklch(0 0 0 / 0.22);
+
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  padding: 0;
+}
+
+.cytoscapeContainer {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-primary);
+}
+
+/* Custom node label styles - these are applied globally */
+:global(.custom-node-label) {
+  width: 250px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+:global(.custom-node-label *) {
+  pointer-events: none;
+}
+
+:global(.node-header) {
+  background: var(--accent-primary);
+  color: white;
+  padding: 10px 12px;
+  font-weight: bold;
+  font-size: 14px;
+  text-align: center;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+:global(.node-header > *) {
+  position: relative;
+  z-index: 1;
+}
+
+:global(.node-header span) {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px 8px;
+  border-radius: 4px;
+  backdrop-filter: blur(2px);
+}
+
+:global(.node-header .info-btn) {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+}
+
+:global(.header-stripes) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+  /* Background is set via inline style from generateStripeGradientCSS */
+}
+
+:global(.node-literals) {
+  background: var(--bg-secondary);
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+:global(.literal-item) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  margin: 4px 0;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  font-size: 12px;
+  box-sizing: border-box;
+  line-height: 1.2;
+  position: relative;
+}
+
+:global(.literal-color-bar) {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 4px 0 0 4px;
+  flex-shrink: 0;
+  opacity: 0.8;
+  /* Background is set via inline style from generateStripeGradientCSS */
+}
+
+:global(.literal-item:first-child) {
+  margin-top: 0;
+}
+
+:global(.literal-item:last-child) {
+  margin-bottom: 0;
+}
+
+:global(.literal-info) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+:global(.literal-name) {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+:global(.literal-type) {
+  font-style: italic;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+:global(.literal-cardinality) {
+  font-weight: 600;
+  color: var(--accent-primary);
+  font-size: 11px;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+/* Info buttons */
+:global(.info-btn) {
+  pointer-events: all !important;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  line-height: 1;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+
+:global(.info-btn:hover) {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+:global(.entity-info-btn) {
+  color: white;
+  pointer-events: all !important;
+}
+
+:global(.literal-info-btn) {
+  color: var(--accent-primary);
+  margin-left: 4px;
+  pointer-events: all !important;
+}
+
+/* Tooltip node styles */
+:global(.tooltip-node-label) {
+  width: 400px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-xl);
+  pointer-events: none;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
+}
+
+:global(.tooltip-header) {
+  background: var(--accent-primary);
+  color: var(--primary-foreground);
+  padding: 10px 12px;
+  font-weight: bold;
+  font-size: 14px;
+  text-align: center;
+  border-bottom: 2px solid var(--accent-hover);
+}
+
+:global(.tooltip-content) {
+  padding: 12px;
+  background: var(--bg-tertiary);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+:global(.tooltip-field) {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+:global(.tooltip-key) {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+:global(.tooltip-value) {
+  color: var(--text-tertiary);
+  word-break: break-word;
+  flex: 1;
+}
+
+/* Enhanced tooltip styles for comprehensive information */
+:global(.tooltip-field[data-datasource="true"]) {
+  background: var(--bg-secondary);
+  padding: 4px 6px;
+  border-radius: 4px;
+  margin: 4px 0;
+  border-left: 3px solid var(--accent-primary);
+}
+
+:global(.tooltip-field[data-entity-resolution="true"]) {
+  background: var(--bg-secondary);
+  padding: 4px 6px;
+  border-radius: 4px;
+  margin: 4px 0;
+  border-left: 3px solid var(--success);
+}
+
+:global(.tooltip-field[data-property-info="true"]) {
+  background: var(--bg-secondary);
+  padding: 4px 6px;
+  border-radius: 4px;
+  margin: 4px 0;
+  border-left: 3px solid var(--warning);
+}
+
+.zoomButton {
+  position: absolute;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  font-size: 18px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+  z-index: 1000;
+}
+
+.zoomButton:hover {
+  background: var(--bg-secondary);
+}

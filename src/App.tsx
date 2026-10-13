@@ -1,122 +1,138 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { DetailsPanel } from './DetailsPanel';
+import { EXAMPLE_TURTLE } from './example';
+import { RdfGraph, type RdfGraphHandle, type Selection } from './graph/RdfGraph';
+import { parseTurtle, type RdfGraph as RdfGraphModel } from './rdf/buildGraph';
+import './App.css';
 
-function App() {
-  const [count, setCount] = useState(0)
+const STORAGE_KEY = 'rdf-visualizer:turtle';
+const PARSE_DELAY_MS = 300;
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+type Parsed = {
+  /** The last graph that parsed, kept on screen while the text is mid-edit and invalid. */
+  graph: RdfGraphModel | null;
+  error: string | null;
+};
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+function parse(text: string, typesAsLinks: boolean, previous: RdfGraphModel | null): Parsed {
+  const result = parseTurtle(text, { typesAsLinks });
+  return result.ok ? { graph: result.graph, error: null } : { graph: previous, error: result.error };
 }
 
-export default App
+function loadText(): string {
+  try {
+    return localStorage.getItem(STORAGE_KEY) ?? EXAMPLE_TURTLE;
+  } catch {
+    return EXAMPLE_TURTLE;
+  }
+}
+
+export default function App() {
+  const [text, setText] = useState(loadText);
+  const [typesAsLinks, setTypesAsLinks] = useState(false);
+  const [parsed, setParsed] = useState<Parsed>(() => parse(text, typesAsLinks, null));
+  const [selection, setSelection] = useState<Selection>(null);
+  const graphRef = useRef<RdfGraphHandle>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setParsed((previous) => parse(text, typesAsLinks, previous.graph));
+    }, PARSE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [text, typesAsLinks]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, text);
+    } catch {
+      // Storage is a convenience; without it the text just isn't remembered.
+    }
+  }, [text]);
+
+  const { graph, error } = parsed;
+  const activeSelection = selection && graph && selectionExists(graph, selection) ? selection : null;
+
+  const navigate = (next: NonNullable<Selection>) => {
+    setSelection(next);
+    graphRef.current?.focus(next.id);
+  };
+
+  return (
+    <div className="app">
+      <header className="topbar">
+        <h1>RDF Visualizer</h1>
+        <span className="topbar__hint">Paste Turtle on the left to see it as a graph</span>
+      </header>
+
+      <main className="workspace">
+        <section className="editor" aria-label="Turtle input">
+          <div className="toolbar">
+            <span className="toolbar__title">Turtle</span>
+            <button type="button" onClick={() => setText(EXAMPLE_TURTLE)}>
+              Example
+            </button>
+            <button type="button" onClick={() => setText('')}>
+              Clear
+            </button>
+          </div>
+          <textarea
+            className="editor__input"
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            onKeyDown={insertTab}
+            spellCheck={false}
+            autoCapitalize="off"
+            autoComplete="off"
+            placeholder="@prefix ex: <http://example.org/> .&#10;&#10;ex:alice ex:knows ex:bob ."
+          />
+          <div className={`editor__status ${error ? 'editor__status--error' : ''}`} role="status">
+            {error
+              ? error
+              : graph
+                ? `${graph.tripleCount} triples · ${graph.resources.length} nodes · ${graph.links.length} links`
+                : ''}
+          </div>
+        </section>
+
+        <section className="viewer" aria-label="Graph">
+          <div className="toolbar">
+            <label className="toggle">
+              <input type="checkbox" checked={typesAsLinks} onChange={(e) => setTypesAsLinks(e.target.checked)} />
+              Draw <code>rdf:type</code> as links
+            </label>
+            {error && graph && <span className="toolbar__stale">Showing last valid graph</span>}
+          </div>
+          <div className="viewer__stage">
+            {graph && graph.resources.length > 0 ? (
+              <RdfGraph ref={graphRef} graph={graph} selection={activeSelection} onSelect={setSelection} />
+            ) : (
+              <div className="empty">{error ? 'Fix the error to see the graph.' : 'Nothing to show yet.'}</div>
+            )}
+            {graph && activeSelection && (
+              <DetailsPanel
+                graph={graph}
+                selection={activeSelection}
+                onNavigate={navigate}
+                onClose={() => setSelection(null)}
+              />
+            )}
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function selectionExists(graph: RdfGraphModel, selection: NonNullable<Selection>): boolean {
+  return selection.kind === 'resource'
+    ? graph.resources.some((resource) => resource.id === selection.id)
+    : graph.links.some((link) => link.id === selection.id);
+}
+
+/** Tab indents instead of leaving the editor, as it would in any code editor. */
+function insertTab(event: KeyboardEvent<HTMLTextAreaElement>) {
+  if (event.key !== 'Tab' || event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return;
+  event.preventDefault();
+  // execCommand keeps the edit on the browser's undo stack, which setting the value would not.
+  document.execCommand('insertText', false, '    ');
+}
