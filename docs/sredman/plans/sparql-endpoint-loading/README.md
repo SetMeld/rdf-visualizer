@@ -85,7 +85,8 @@ The SPARQL tab holds:
 - **Endpoint** — a URL input.
 - **Query** — a textarea, initially the CONSTRUCT above. Tab indents, as in the Turtle editor;
   ⌘/Ctrl-Enter runs.
-- **Run** — becomes **Cancel** while a request is in flight.
+- **Run** — becomes **Cancel** while a request is in flight. The two are separate elements: one
+  element changing type mid-click would submit the form again as the cancel lands.
 - A status line (`role="status"`): `Running…`, the triple/node/link counts after a result, `The query
   returned no triples.`, or the error in the error colour.
 
@@ -166,23 +167,25 @@ covers N-Triples.
 
 | Feature / behavior | Scenario | Level | Where | Status |
 | --- | --- | --- | --- | --- |
-| B1 load from endpoint | Supplied query draws every fixture subject, literal and link; request carries the query | integration (browser) | `e2e/sparql.spec.ts` | planned |
-| B1 interactions | Clicking a fetched card lists its links in the details panel; type filter narrows to one type | integration (browser) | `e2e/sparql.spec.ts` | planned |
-| B2 edited query | Books-only query draws books, not people | integration (browser) | `e2e/sparql.spec.ts` | planned |
-| B3 empty result | After a non-empty load, an empty result says so and shows no cards | integration (browser) | `e2e/sparql.spec.ts` | planned |
-| B4 validation | Empty URL and invalid URL show errors without a request, then a corrected URL succeeds | integration (browser) | `e2e/sparql.spec.ts` | planned |
-| B4 HTTP error | 500 shows status and body excerpt, then recovery | integration (browser) | `e2e/sparql.spec.ts` | planned |
-| B4 unreachable | Closed port shows the reach/CORS error | integration (browser) | `e2e/sparql.spec.ts` | planned |
-| B4 CORS | Endpoint without `Access-Control-Allow-Origin` shows the reach/CORS error | integration (browser) | `e2e/sparql.spec.ts` | planned |
-| B4 malformed | Unparseable Turtle shows a parse error | integration (browser) | `e2e/sparql.spec.ts` | planned |
-| B4 stuck | Endpoint that never answers can be cancelled | integration (browser) | `e2e/sparql.spec.ts` | planned |
-| Paste still works | Turtle tab draws pasted Turtle | integration (browser) | `e2e/sparql.spec.ts` | planned |
-| Request shape | POST, form body, Accept header, no credentials | unit | `src/rdf/sparql.test.ts` | planned |
-| Formats | N-Triples, N-Quads (graph names dropped), TriG; missing Content-Type read as Turtle; prefixes kept | unit | `src/rdf/sparql.test.ts` | planned |
-| Wrong formats | SPARQL results JSON, RDF/XML each give their message | unit | `src/rdf/sparql.test.ts` | planned |
-| Validation | Empty, non-URL, non-http, mixed content, localhost exemption, empty query | unit | `src/rdf/sparql.test.ts` | planned |
-| Timeout | Abort after 120 s reports a timeout, not a cancel | unit | `src/rdf/sparql.test.ts` | planned |
-| Large result | Not truncated | — | — | Not tested at scale: no code path limits the number of triples; layout speed on very large graphs is the existing renderer's and unchanged |
+| B1 load from endpoint | Supplied query draws every fixture subject, literal and link; request carries the query | integration (browser) | `e2e/sparql.spec.ts` | PASS |
+| B1 interactions | Clicking a fetched card lists its links in the details panel; type filter narrows to one type | integration (browser) | `e2e/sparql.spec.ts` | PASS |
+| B2 edited query | Books-only query draws books, not people | integration (browser) | `e2e/sparql.spec.ts` | PASS |
+| B3 empty result | After a non-empty load, an empty result says so and shows no cards | integration (browser) | `e2e/sparql.spec.ts` | PASS |
+| B4 validation | Empty URL and invalid URL show errors without a request, then a corrected URL succeeds | integration (browser) | `e2e/sparql.spec.ts` | PASS |
+| B4 HTTP error | 500 shows status and body excerpt, then recovery | integration (browser) | `e2e/sparql.spec.ts` | PASS |
+| B4 unreachable | Closed port shows the reach/CORS error | integration (browser) | `e2e/sparql.spec.ts` | PASS |
+| B4 CORS | Endpoint without `Access-Control-Allow-Origin` shows the reach/CORS error | integration (browser) | `e2e/sparql.spec.ts` | PASS |
+| B4 malformed | Unparseable Turtle shows a parse error | integration (browser) | `e2e/sparql.spec.ts` | PASS |
+| B4 stuck | Endpoint that never answers can be cancelled | integration (browser) | `e2e/sparql.spec.ts` | PASS |
+| Paste still works | Turtle tab draws pasted Turtle | integration (browser) | `e2e/sparql.spec.ts` | PASS |
+| Request shape | POST, form body, Accept header, no credentials | unit | `src/rdf/sparql.test.ts` | done |
+| Formats | N-Triples, N-Quads (graph names dropped), TriG; missing Content-Type read as Turtle; prefixes kept | unit | `src/rdf/sparql.test.ts` | done |
+| Wrong formats | SPARQL results JSON, RDF/XML each give their message | unit | `src/rdf/sparql.test.ts` | done |
+| Validation | Empty, non-URL, non-http, mixed content, localhost exemption, empty query | unit | `src/rdf/sparql.test.ts` | done |
+| Timeout | Abort after 120 s reports a timeout, not a cancel | unit | `src/rdf/sparql.test.ts` | done |
+| Remembered input | Endpoint and query survive a reload; nothing runs until Run | integration (browser) | `e2e/sparql.spec.ts` | PASS |
+| Large result | 5,000 triples parsed, none dropped | unit | `src/rdf/sparql.test.ts` | done |
+| Large result | Not truncated | — | — | Not tested in the browser at scale: no code path limits the number of triples; layout speed on very large graphs is the existing renderer's and unchanged |
 | Mixed content | Real https page to http endpoint | — | — | Not run in a browser: the fixture serves over http; covered by the unit check of the pre-flight rule |
 
 ## Validation plan

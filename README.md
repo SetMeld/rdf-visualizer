@@ -15,6 +15,29 @@ the other resources it links to.
   neighbours stay hidden until you click a card (⌘/Ctrl-click to add more types). Expand a type to list its resources; click one to focus on it.
 - **Esc**, double-clicking the background, or **Whole graph** returns to the full graph.
 
+## Loading from a SPARQL endpoint
+
+The **SPARQL** tab beside **Turtle** fetches the graph instead: enter the endpoint URL, edit the query
+(it starts as `CONSTRUCT { ?s ?p ?o . } WHERE { ?s ?p ?o . }`) and press **Run** or ⌘/Ctrl-Enter.
+Every triple returned is drawn; use `LIMIT` or a narrower `WHERE` for large stores. The endpoint and
+query are remembered, but nothing is sent until you run it.
+
+The request goes straight from your browser to the endpoint — there is no server in between — so the
+endpoint has to allow it:
+
+- **CORS.** The endpoint must answer with `Access-Control-Allow-Origin` covering this page's origin
+  (`https://setmeld.github.io`, or `*`). The query is a SPARQL 1.1 Protocol `POST` with a form body
+  and an `Accept` header, which browsers send without a preflight, so no `OPTIONS` handling is needed.
+  Without the header the browser hides the response and the viewer can only say it could not reach
+  the endpoint.
+- **HTTPS.** From the https:// site, browsers block http:// endpoints, except on `localhost`.
+- **No credentials.** Cookies and authentication are not sent; the endpoint must allow anonymous reads.
+
+Supported responses: Turtle, N-Triples, N-Quads and TriG (named graphs are drawn together), which is
+what the viewer asks for. A response with no `Content-Type` or `text/plain` is read as Turtle.
+RDF/XML and JSON-LD are not read, and SELECT or ASK results are not graphs — use `CONSTRUCT` or
+`DESCRIBE`.
+
 ## Development
 
 ```sh
@@ -24,6 +47,15 @@ npm run dev       # start dev server
 npm run build     # type-check and build to dist/
 npm run preview   # serve the production build locally
 npm run lint      # lint with oxlint
+npm test          # unit tests
+npm run test:e2e  # browser tests: builds, serves, and drives Chromium against a fixture SPARQL endpoint
+```
+
+`npm run test:e2e` needs Playwright's Chromium (`npx playwright install --with-deps chromium`).
+Where its system libraries can't be installed, run it in Playwright's image instead:
+
+```sh
+docker run --rm --ipc=host -v "$PWD":/work -w /work mcr.microsoft.com/playwright:v1.64.1-noble npx playwright test
 ```
 
 ## Deployment

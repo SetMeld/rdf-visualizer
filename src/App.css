@@ -149,6 +149,88 @@
   white-space: pre-wrap;
 }
 
+/* Source tabs and the SPARQL form */
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin-right: auto;
+}
+
+.toolbar .tabs__tab {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.toolbar .tabs__tab--active {
+  border-color: var(--border);
+  background: var(--bg);
+  color: var(--text-strong);
+}
+
+.sparql {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sparql__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.sparql__field input {
+  padding: 6px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-strong);
+  background: var(--surface);
+}
+
+.sparql__field--query {
+  flex: 1;
+  min-height: 0;
+}
+
+.sparql__field--query .editor__input {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 8px;
+  font-weight: 400;
+}
+
+.sparql__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.sparql__actions button {
+  padding: 4px 16px;
+  border-radius: 5px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sparql__hint {
+  color: var(--text-muted);
+}
+
 .viewer {
   display: flex;
   flex-direction: column;
