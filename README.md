@@ -19,9 +19,11 @@ the other resources it links to.
 
 The **SPARQL** tab beside **Turtle** fetches the graph instead: enter the endpoint URL, edit the query
 (it starts as `CONSTRUCT { ?s ?p ?o . } WHERE { ?s ?p ?o . }`) and press **Run** or ⌘/Ctrl-Enter.
-Every triple returned is loaded. A view with more than 500 nodes is not drawn, because laying it out
-would freeze the page; the type list and search still cover all of it, and clicking a node draws its
-neighbourhood. The endpoint and query are remembered, but nothing is sent until you run it.
+Every triple returned is loaded. Graphs under 500 nodes are laid out left to right, larger ones by
+force, in the background so the page keeps answering. A result of more than 5,000 nodes opens on an
+overview of its types, with a member count on each; click a type to draw it, or search on the left
+and click a node to draw its neighbourhood. The endpoint and query are remembered, but nothing is
+sent until you run it.
 
 The request goes straight from your browser to the endpoint — there is no server in between — so the
 endpoint has to allow it:

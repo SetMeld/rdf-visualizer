@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { LARGE, startFixtureEndpoint } from './fixtureEndpoint.ts';
+import { LARGE, MEDIUM, startFixtureEndpoint } from './fixtureEndpoint.ts';
 
 const SUPPLIED_QUERY = 'CONSTRUCT { ?s ?p ?o . }\nWHERE { ?s ?p ?o . }\n';
 const FX = 'http://fixture.example/';
@@ -52,8 +52,15 @@ async function snapshot(page: Page, name: string) {
   await page.screenshot({ path: test.info().outputPath(`${name}.png`) });
 }
 
+/** The graph pane once its layout has finished and the cards are where they will stay. */
+function placedGraph(page: Page): Locator {
+  return page.locator('.graph[data-pending="false"]');
+}
+
 /** Cards pass pointer events through to the canvas, which is what handles the click. */
 async function clickCard(page: Page, id: string) {
+  await expect(placedGraph(page)).toBeVisible();
+  await expect(card(page, id)).toBeVisible();
   const box = (await card(page, id).boundingBox())!;
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 }
@@ -75,6 +82,7 @@ test('B1: the supplied CONSTRUCT query draws the endpoint graph without pasting 
 
   await run(page, `${endpoint.origin}/sparql`);
   await expectFullFixture(page);
+  await expect(placedGraph(page)).toHaveAttribute('data-layout', 'layered');
   await snapshot(page, 'b1-loaded');
   // Nothing from the Turtle editor's example is on screen.
   await expect(page.getByText('Alice Johnson')).toHaveCount(0);
@@ -214,41 +222,73 @@ test.describe('B4: failures are reported and a corrected run recovers', () => {
   });
 });
 
-test('B5: a result too large to draw keeps the page responsive and can be explored', async ({ page }) => {
+test('B5: a result too large to draw opens on its types, stays responsive and can be explored', async ({ page }) => {
   test.setTimeout(90_000);
   const nodes = LARGE.episodes + LARGE.series;
   const triples = LARGE.series * 2 + LARGE.episodes * 3;
+  const TYPE = 'urn:rdf-visualizer:type:';
   await openSparql(page);
   await run(page, `${endpoint.origin}/large/sparql`);
 
   // Every triple is loaded and counted; none is dropped to make it fit.
-  await expect(status(page)).toHaveText(
-    `Turtle · ${triples} triples · ${nodes} nodes · ${LARGE.episodes} links`,
-    { timeout: 30_000 },
-  );
-  const message = page.locator('.viewer .empty');
-  await expect(message).toHaveText(new RegExp(`^${nodes.toLocaleString('en')} nodes are too many to draw at once`));
-  await expect(page.locator('.card')).toHaveCount(0);
-  await snapshot(page, 'b5-too-large');
+  await expect(status(page)).toHaveText(`Turtle · ${triples} triples · ${nodes} nodes · ${LARGE.episodes} links`, {
+    timeout: 30_000,
+  });
 
-  // Still responsive: the page answers at once and a type's members can be listed and searched.
+  // The overview: one card per type, with its member count, instead of a blank pane.
+  await expect(page.getByText(`${nodes.toLocaleString('en')} nodes in 2 types`)).toBeVisible();
+  await expect(placedGraph(page)).toBeVisible();
+  await expect(page.locator('.card')).toHaveCount(2);
+  await expect(card(page, `${TYPE}${SCHEMA}Episode`)).toContainText(`${LARGE.episodes}`);
+  await expect(card(page, `${TYPE}${SCHEMA}TVSeries`)).toContainText(`${LARGE.series}`);
+  await snapshot(page, 'b5-overview');
+
+  // Still responsive.
   const started = Date.now();
   await page.evaluate(() => 1);
   expect(Date.now() - started).toBeLessThan(1_000);
-  const types = page.getByRole('navigation', { name: 'Types' });
-  await expect(types.getByText(`${LARGE.episodes}`, { exact: true })).toBeVisible();
 
-  // A type with more members than can be drawn says so for that view too.
-  await types.getByText(`${SCHEMA}Episode`, { exact: true }).click();
+  // Clicking a type that can be drawn draws its members.
+  await clickCard(page, `${TYPE}${SCHEMA}TVSeries`);
+  await expect(placedGraph(page)).toBeVisible();
+  await expect(page.locator('.card')).toHaveCount(LARGE.series);
+  await expect(card(page, `${FX}series45`)).toContainText('Series 45');
+
+  // Back to the overview; a type with more members than can be drawn says so.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.card')).toHaveCount(2);
+  await clickCard(page, `${TYPE}${SCHEMA}Episode`);
+  const message = page.locator('.viewer .empty');
   await expect(message).toHaveText(new RegExp(`^This view has ${LARGE.episodes.toLocaleString('en')} nodes`));
 
   // Searching and opening one node draws its neighbourhood: the episode and its series.
+  const types = page.getByRole('navigation', { name: 'Types' });
   await types.getByLabel('Search types and nodes').fill('Episode 12345');
   await types.getByRole('button', { name: 'Episode 12345', exact: true }).click();
   await expect(card(page, `${FX}episode12345`)).toContainText('Episode 12345');
   await expect(card(page, `${FX}series45`)).toContainText('Series 45');
   await expect(page.locator('.card')).toHaveCount(2);
   await snapshot(page, 'b5-neighbourhood');
+});
+
+test('B6: a graph of 500 or more nodes is laid out by force, off the main thread', async ({ page }) => {
+  test.setTimeout(90_000);
+  const nodes = MEDIUM.episodes + MEDIUM.series;
+  await openSparql(page);
+  await run(page, `${endpoint.origin}/medium/sparql`);
+  await expect(status(page)).toHaveText(new RegExp(`· ${nodes} nodes ·`), { timeout: 30_000 });
+
+  // While it is laid out the page answers, and says what it is doing.
+  const graph = page.locator('.graph');
+  await expect(graph).toHaveAttribute('data-layout', 'force');
+  const started = Date.now();
+  await page.evaluate(() => 1);
+  expect(Date.now() - started).toBeLessThan(1_000);
+
+  await expect(placedGraph(page)).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator('.card')).toHaveCount(nodes);
+  await expect(card(page, `${FX}series7`)).toBeVisible();
+  await snapshot(page, 'b6-force');
 });
 
 test('pasting Turtle still draws it', async ({ page }) => {

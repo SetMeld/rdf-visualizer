@@ -6,6 +6,7 @@ const WELL_KNOWN_PREFIXES: Prefixes = {
   rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
   xsd: 'http://www.w3.org/2001/XMLSchema#',
   owl: 'http://www.w3.org/2002/07/owl#',
+  gist: 'https://w3id.org/semanticarts/ns/ontology/gist/',
 };
 
 /**

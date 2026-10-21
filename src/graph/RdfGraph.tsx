@@ -1,12 +1,11 @@
-import { useEffect, useImperativeHandle, useLayoutEffect, useRef, type Ref } from 'react';
+import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type Ref } from 'react';
 import cytoscape, { type Core, type ElementDefinition, type NodeSingular } from 'cytoscape';
-import dagre from 'cytoscape-dagre';
 import type { RdfGraph as RdfGraphModel } from '../rdf/buildGraph';
 import { colorFor } from '../rdf/terms';
+import { layoutFor } from './layout';
+import { layoutInWorker } from './layoutClient';
 import { CARD_WIDTH, ResourceCard } from './ResourceCard';
 import './RdfGraph.css';
-
-cytoscape.use(dagre);
 
 /** Life size. A graph too small to fill the pane is shown small rather than magnified. */
 const MAX_ZOOM_ON_FIT = 1;
@@ -77,6 +76,9 @@ export function RdfGraph({
   const layerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
   const lastView = useRef<ViewSnapshot | null>(null);
+  /** Hidden until the worker has placed every node, so nothing is drawn piled up at the origin. */
+  const [layout, setLayout] = useState<{ pending: boolean; error?: string }>({ pending: true });
+  const algorithm = layoutFor(graph.resources.length);
   // Read by Cytoscape's listeners, which are bound once per graph rather than once per render.
   const handlers = useRef({ onSelect, onOpenResource, onReset });
   useEffect(() => {
@@ -107,14 +109,19 @@ export function RdfGraph({
       })),
     ];
 
+    const large = algorithm === 'force';
     const cy = cytoscape({
       container,
       elements,
-      style: graphStyle(container),
-      layout: { name: 'preset' },
+      style: graphStyle(container, large),
+      // Positions come from the worker; fitting now would measure every element for nothing.
+      layout: { name: 'preset', fit: false },
       minZoom: 0.05,
       maxZoom: 3,
       boxSelectionEnabled: false,
+      // Large graphs pan and zoom as a snapshot instead of redrawing every edge each frame.
+      hideEdgesOnViewport: large,
+      textureOnViewport: large,
       autounselectify: true,
     });
     cyRef.current = cy;
@@ -130,22 +137,28 @@ export function RdfGraph({
       card.style.transform = `translate(${x - node.data('width') / 2}px, ${y - node.data('height') / 2}px)`;
     };
 
-    cy.layout({
-      name: 'dagre',
-      rankDir: 'LR',
-      nodeSep: 50,
-      rankSep: 140,
-      edgeSep: 20,
-      fit: false,
-      animate: false,
-    } as cytoscape.LayoutOptions).run();
-    const previous = lastView.current;
-    if (!previous || previous.fitKey !== view.fitKey || !keepView(cy, previous, view)) fitView(cy);
-    cy.nodes().forEach(syncNode);
-    syncViewport();
+    let placed = false;
+    setLayout({ pending: true });
+    const job = layoutInWorker({
+      nodes: cy.nodes().map((node) => ({ id: node.id(), width: node.data('width'), height: node.data('height') })),
+      edges: graph.links.map(({ id, source, target }) => ({ id, source, target })),
+      algorithm,
+    });
+    job.promise.then(
+      (positions) => {
+        cy.nodes().positions((node) => positions[(node as NodeSingular).id()]);
+        const previous = lastView.current;
+        if (!previous || previous.fitKey !== view.fitKey || !keepView(cy, previous, view)) fitView(cy);
+        cy.nodes().forEach(syncNode);
+        syncViewport();
+        cy.on('position', 'node', (event) => syncNode(event.target));
+        placed = true;
+        setLayout({ pending: false });
+      },
+      (error: Error) => setLayout({ pending: false, error: error.message }),
+    );
 
     cy.on('viewport', syncViewport);
-    cy.on('position', 'node', (event) => syncNode(event.target));
     cy.on('tap', 'node', (event) => handlers.current.onOpenResource(event.target.id()));
     cy.on('tap', 'edge', (event) => handlers.current.onSelect({ kind: 'link', id: event.target.id() }));
     cy.on('tap', (event) => {
@@ -159,16 +172,20 @@ export function RdfGraph({
 
     // Edge colours are drawn on a canvas, out of reach of CSS, so they are re-read on a theme change.
     const colorScheme = window.matchMedia('(prefers-color-scheme: dark)');
-    const restyle = () => cy.style(graphStyle(container));
+    const restyle = () => cy.style(graphStyle(container, large));
     colorScheme.addEventListener('change', restyle);
 
     return () => {
+      job.cancel();
       colorScheme.removeEventListener('change', restyle);
-      lastView.current = {
-        zoom: cy.zoom(),
-        rendered: new Map(cy.nodes().map((node) => [node.id(), { ...node.renderedPosition() }])),
-        fitKey: view.fitKey,
-      };
+      // A graph replaced before it was placed has no view worth lining the next one up with.
+      if (placed) {
+        lastView.current = {
+          zoom: cy.zoom(),
+          rendered: new Map(cy.nodes().map((node) => [node.id(), { ...node.renderedPosition() }])),
+          fitKey: view.fitKey,
+        };
+      }
       cy.destroy();
       cyRef.current = null;
     };
@@ -206,7 +223,21 @@ export function RdfGraph({
   const selectedResource = selection?.kind === 'resource' ? selection.id : undefined;
 
   return (
-    <div className="graph">
+    <div
+      className={`graph ${layout.pending ? 'graph--pending' : ''}`}
+      data-layout={algorithm}
+      data-pending={layout.pending}
+    >
+      {layout.pending && (
+        <div className="graph__notice" role="status">
+          Laying out {graph.resources.length.toLocaleString('en')} nodes…
+        </div>
+      )}
+      {layout.error && (
+        <div className="graph__notice graph__notice--error" role="alert">
+          Could not lay out the graph: {layout.error}
+        </div>
+      )}
       <div ref={containerRef} className="graph__canvas" />
       <div ref={layerRef} className="graph__cards">
         {graph.resources.map((resource) => (
@@ -276,7 +307,8 @@ function nudgeIntoView(cy: Core) {
 }
 
 function fitView(cy: Core) {
-  cy.fit(undefined, FIT_PADDING);
+  // Nodes alone: measuring every edge and label as well costs seconds on a large graph.
+  cy.fit(cy.nodes(), FIT_PADDING);
   // Fitting alone would blow a one-node graph up to fill the pane.
   if (cy.zoom() > MAX_ZOOM_ON_FIT) {
     cy.zoom(MAX_ZOOM_ON_FIT);
@@ -284,7 +316,8 @@ function fitView(cy: Core) {
   }
 }
 
-function graphStyle(container: HTMLElement): cytoscape.StylesheetJson {
+/** `large` graphs get straight, unlabelled edges, labelled only once selected; curves and labels cost seconds there. */
+function graphStyle(container: HTMLElement, large: boolean): cytoscape.StylesheetJson {
   const css = getComputedStyle(container);
   const token = (name: string) => css.getPropertyValue(name).trim();
 
@@ -325,6 +358,12 @@ function graphStyle(container: HTMLElement): cytoscape.StylesheetJson {
       },
     },
     { selector: 'edge.active', style: { width: 3.5, 'z-index': 10, 'font-weight': 'bold' } },
+    ...(large
+      ? [
+          { selector: 'edge', style: { 'curve-style': 'straight' as const, label: '', width: 1.5, 'arrow-scale': 0.8 } },
+          { selector: 'edge.active', style: { label: 'data(label)', width: 3 } },
+        ]
+      : []),
     { selector: 'edge.faded', style: { opacity: 0.2 } },
   ];
 }

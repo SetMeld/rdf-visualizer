@@ -13,6 +13,7 @@ import {
   visibleGraph,
   type Focus,
 } from './rdf/focus';
+import { overviewTypeKey, typeOverview } from './rdf/overview';
 import { checkRequest, DEFAULT_QUERY, runConstruct, type RunResult } from './rdf/sparql';
 import { SparqlPanel, type SparqlStatus } from './SparqlPanel';
 import { TypeNav } from './TypeNav';
@@ -28,8 +29,8 @@ type Source = 'turtle' | 'sparql';
 
 type SparqlRun = { kind: 'idle' } | { kind: 'running' } | RunResult;
 const PARSE_DELAY_MS = 300;
-/** Layout time grows faster than the node count; past this, drawing stalls the page for many seconds. */
-const MAX_DRAWN_NODES = 500;
+/** Past this, laying out and drawing a card per node takes longer than anyone will wait. */
+const MAX_DRAWN_NODES = 5000;
 
 type Parsed = {
   /** The last graph that parsed, kept on screen while the text is mid-edit and invalid. */
@@ -104,6 +105,12 @@ export default function App() {
   const activeFocus = focusLost ? null : focus;
   const shownGraph = focusLost ? graph : shown;
   const tooLarge = shownGraph !== null && shownGraph.resources.length > MAX_DRAWN_NODES;
+  // A whole graph too large to draw opens on its types instead.
+  const showOverview = tooLarge && !activeFocus;
+  const overview = useMemo(
+    () => (showOverview && graph ? typeOverview(graph, typeGroups) : null),
+    [showOverview, graph, typeGroups],
+  );
   const activeSelection = selection && shownGraph && selectionExists(shownGraph, selection) ? selection : null;
 
   // A different set of things on screen altogether, so it is fitted rather than lined up with the last.
@@ -331,9 +338,11 @@ export default function App() {
             </button>
             {graph && shownGraph && (
               <span className="toolbar__summary">
-                {activeFocus
-                  ? `Showing ${shownGraph.resources.length} of ${graph.resources.length} nodes`
-                  : `${graph.resources.length} nodes`}
+                {overview
+                  ? `${graph.resources.length.toLocaleString('en')} nodes in ${overview.resources.length} types · click a type to show its members`
+                  : activeFocus
+                    ? `Showing ${shownGraph.resources.length} of ${graph.resources.length} nodes`
+                    : `${graph.resources.length} nodes`}
               </span>
             )}
             {error && graph && <span className="toolbar__stale">Showing last valid graph</span>}
@@ -352,7 +361,18 @@ export default function App() {
               onOpenResource={openResource}
             />
             <div className="viewer__stage">
-              {shownGraph && shownGraph.resources.length > 0 && !tooLarge ? (
+              {overview ? (
+                <RdfGraph
+                  key="overview"
+                  graph={overview}
+                  selection={null}
+                  onSelect={() => {}}
+                  onOpenResource={(id) => filterType(overviewTypeKey(id), false)}
+                  onReset={reset}
+                  hiddenNeighbors={() => 0}
+                  view={view}
+                />
+              ) : shownGraph && shownGraph.resources.length > 0 && !tooLarge ? (
                 <RdfGraph
                   ref={graphRef}
                   graph={shownGraph}
@@ -367,7 +387,7 @@ export default function App() {
               ) : (
                 <div className="empty">{emptyMessage}</div>
               )}
-              {shownGraph && activeSelection && (
+              {shownGraph && activeSelection && !overview && (
                 <DetailsPanel
                   // The whole graph, so links to resources that are off screen are listed too.
                   graph={graph!}
