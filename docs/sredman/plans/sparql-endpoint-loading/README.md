@@ -185,7 +185,7 @@ covers N-Triples.
 | Timeout | Abort after 120 s reports a timeout, not a cancel | unit | `src/rdf/sparql.test.ts` | done |
 | Remembered input | Endpoint and query survive a reload; nothing runs until Run | integration (browser) | `e2e/sparql.spec.ts` | PASS |
 | Large result | 5,000 triples parsed, none dropped | unit | `src/rdf/sparql.test.ts` | done |
-| Large result | Not truncated | — | — | Not tested in the browser at scale: no code path limits the number of triples; layout speed on very large graphs is the existing renderer's and unchanged |
+| Large result | Whole lab store (104,090 triples, 20,416 nodes, 25,497 links) | manual | lab VM 127 | FAIL: fetch 3.7 s, parse 0.5 s, `buildGraph` 1.0 s, then the existing renderer had not drawn within 7 min. 2,000 triples (884 nodes) draw in 8 s and 790 triples (191 nodes) in 3 s. Nothing is truncated; a graph this size needs a renderer change, which is out of this plan's scope |
 | Mixed content | Real https page to http endpoint | — | — | Not run in a browser: the fixture serves over http; covered by the unit check of the pre-flight rule |
 
 ## Validation plan
