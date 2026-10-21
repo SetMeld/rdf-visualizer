@@ -3,9 +3,11 @@
 The viewer gains a second source beside the Turtle editor: a SPARQL endpoint URL and an editable
 CONSTRUCT query, run from the browser, whose RDF result is drawn with the existing graph view. It
 stays a static site with no back-end, so the endpoint must be reachable from the user's browser and
-must allow cross-origin requests. Pasting Turtle keeps working unchanged.
+must allow cross-origin requests. A result too large to draw at once is loaded whole and explored
+from the type list and search rather than drawn. Pasting Turtle keeps working unchanged.
 
-Issue: AGEN-319 (Multica), child of AGEN-318
+Issue: requested internally, with no public tracker entry; the required behaviors are restated in
+full under Product behaviors.
 
 Date Modified: 2026-10-21
 
@@ -46,7 +48,9 @@ Goals:
 - Draw the result with the existing graph, type list, details panel and focus interactions.
 - Make every failure visible and actionable, never a silent success, a stale graph presented as new,
   or a spinner that never ends; a corrected retry succeeds.
-- Draw every triple returned. No silent truncation.
+- Load every triple returned. No silent truncation.
+- Keep the page responsive however large the result: a graph too large to draw is explored a
+  neighbourhood at a time instead of freezing the tab.
 
 Non-goals:
 
@@ -60,6 +64,7 @@ Non-goals:
 - Named graphs. TriG and N-Quads are read, but their graph names are dropped and all triples drawn
   together.
 - Paging or result limits. The query decides how much comes back.
+- Drawing tens of thousands of nodes at once. That needs a different renderer (below).
 - Removing or changing the Turtle editor.
 
 ## Product behaviors
@@ -67,9 +72,13 @@ Non-goals:
 | ID | Starting conditions | User action | Observable expected result | How it is checked |
 | --- | --- | --- | --- | --- |
 | B1 | Viewer open; a browser-reachable endpoint holds a small known graph | Open the SPARQL tab, enter the endpoint URL, run the supplied CONSTRUCT query; no Turtle pasted | Every subject of the fixture appears as a card with its literal values, and its links are listed with their predicate and target | Playwright drives the real built app against an Oxigraph fixture endpoint; the endpoint records the request; assertions use triples written independently in the test |
-| B2 | Same endpoint holds two distinguishable subsets (people, books) | After B1, edit the query to select only the books and run it | Only the book subjects are drawn; the people are gone | Playwright: endpoint request carries the edited query; book cards present, people cards absent |
+| B2 | Same endpoint holds two distinguishable subsets (people, books) | After B1, edit the query to select only the books and run it | The books are drawn with their own triples. The people's own triples (names, types, `knows`) are gone: Bob, who no book mentions, has no card, and Alice remains only as a bare node because a book's `schema:author` points at her | Playwright: endpoint request carries the edited query; book cards and literals present; no person's name, type or card other than Alice's bare author node |
 | B3 | Endpoint returns a valid empty graph | After a non-empty load, run a query that matches nothing | The viewer says the query returned no triples and draws no cards from the previous result | Playwright after a successful non-empty run |
 | B4 | URL missing or invalid; endpoint returns an HTTP error; endpoint unreachable; endpoint without CORS headers; response not parseable RDF; endpoint never answers | Run; then correct the input or switch to a working endpoint and run again | A visible error naming the cause and what to do, no graph presented as a result, no endless loading (a stuck request can be cancelled and times out); the corrected run succeeds | Playwright for each case, then a successful recovery run |
+| B5 | Endpoint returns a graph far larger than can be drawn (20,000+ nodes) | Run the supplied query | Within seconds the status gives the full triple and node counts and the graph pane says how many nodes there are, that it is too many to draw, and how to narrow it. The page stays responsive throughout. Searching for a node and clicking it draws that node's neighbourhood | Playwright with a 20,100-node fixture, in Chromium and Firefox; checked again by hand against a real 104,266-triple SetMeld store |
+
+B5 was added once a run against a whole 104k-triple store froze the browser. It adds to B1–B4 and
+changes none of them.
 
 The existing paste workflow keeps passing its own check: the Turtle tab draws pasted Turtle as before.
 
@@ -138,6 +147,22 @@ After the request:
 A missing `Content-Type`, `text/plain` or `application/octet-stream` is read as Turtle, which also
 covers N-Triples.
 
+### Large results
+
+Layout time grows faster than the node count: 500 nodes take about 8 s in headless Chromium, 1,000
+about 15 s, and 2,000 did not finish in 5 minutes. All of it runs on the main thread, so the tab
+freezes and Cancel cannot be clicked. `App` therefore draws a view only when it has at most
+`MAX_DRAWN_NODES` (500) nodes. A larger view, whether the whole graph, a type filter or an expanded
+hub, shows instead: "*N* nodes are too many to draw at once (the limit is 500). Search on the left
+and click a node to draw its neighbourhood, or narrow the query." Every triple is still loaded,
+counted in the status line, grouped in the type list and searchable.
+
+Opening a node from a view that is too large replaces that view with the node's neighbourhood
+rather than adding to it. Fetching, parsing and building the 104,266-triple store took about 3 s.
+
+`gist:name` is a label predicate, beside `rdfs:label`, `schema:name` and the rest. SetMeld data
+names everything with it, so without it cards show bare IRIs and search by name finds nothing.
+
 ### State
 
 `App` keeps the SPARQL result as `{ quads, prefixes }` and builds it with `buildGraph`, so the
@@ -160,6 +185,13 @@ covers N-Triples.
 - **Keeping the previous graph on screen during a run or after a failure, marked stale** (as the
   Turtle editor does mid-edit). The editor does it because the text is being typed; a query result is
   a discrete answer, and showing the last one beside an error reads as success. Cleared instead.
+- **Drawing large results with a faster renderer** (Cytoscape's canvas nodes without HTML cards, a
+  WebGL renderer, or layout in a worker). It is the only way to see 20,000 nodes at once, but it
+  replaces the card view this app is built around. Left for its own plan; the limit keeps the tab
+  usable meanwhile.
+- **Adding `LIMIT` to the query, or dropping triples past a threshold.** Fast, but it hides data
+  without saying which. The issue rules out silent truncation, and the user can add `LIMIT`
+  themselves.
 - **Auto-running the query on page load.** Sends a request the user did not ask for to whatever
   endpoint was last used. Not done.
 
@@ -169,7 +201,7 @@ covers N-Triples.
 | --- | --- | --- | --- | --- |
 | B1 load from endpoint | Supplied query draws every fixture subject, literal and link; request carries the query | integration (browser) | `e2e/sparql.spec.ts` | PASS |
 | B1 interactions | Clicking a fetched card lists its links in the details panel; type filter narrows to one type | integration (browser) | `e2e/sparql.spec.ts` | PASS |
-| B2 edited query | Books-only query draws books, not people | integration (browser) | `e2e/sparql.spec.ts` | PASS |
+| B2 edited query | Books-only query draws books; the people's own triples are absent, and Alice remains only as a book's author | integration (browser) | `e2e/sparql.spec.ts` | PASS |
 | B3 empty result | After a non-empty load, an empty result says so and shows no cards | integration (browser) | `e2e/sparql.spec.ts` | PASS |
 | B4 validation | Empty URL and invalid URL show errors without a request, then a corrected URL succeeds | integration (browser) | `e2e/sparql.spec.ts` | PASS |
 | B4 HTTP error | 500 shows status and body excerpt, then recovery | integration (browser) | `e2e/sparql.spec.ts` | PASS |
@@ -177,6 +209,9 @@ covers N-Triples.
 | B4 CORS | Endpoint without `Access-Control-Allow-Origin` shows the reach/CORS error | integration (browser) | `e2e/sparql.spec.ts` | PASS |
 | B4 malformed | Unparseable Turtle shows a parse error | integration (browser) | `e2e/sparql.spec.ts` | PASS |
 | B4 stuck | Endpoint that never answers can be cancelled | integration (browser) | `e2e/sparql.spec.ts` | PASS |
+| B5 large result | 20,100-node result: counts shown, too-large message, page responsive, type filter over the limit says so, searching and opening a node draws its 2-node neighbourhood | integration (browser) | `e2e/sparql.spec.ts` | PASS |
+| B5 large result | Real SetMeld store: 104,266 triples and 20,468 nodes load in 2–3 s; the page answers in under 15 ms; searching "Interstellar" and opening it draws 8 cards in 0.3 s | manual | Firefox and Chromium | PASS |
+| Labels | `gist:name` labels a resource | unit | `src/rdf/buildGraph.test.ts` | done |
 | Paste still works | Turtle tab draws pasted Turtle | integration (browser) | `e2e/sparql.spec.ts` | PASS |
 | Request shape | POST, form body, Accept header, no credentials | unit | `src/rdf/sparql.test.ts` | done |
 | Formats | N-Triples, N-Quads (graph names dropped), TriG; missing Content-Type read as Turtle; prefixes kept | unit | `src/rdf/sparql.test.ts` | done |
@@ -185,15 +220,17 @@ covers N-Triples.
 | Timeout | Abort after 120 s reports a timeout, not a cancel | unit | `src/rdf/sparql.test.ts` | done |
 | Remembered input | Endpoint and query survive a reload; nothing runs until Run | integration (browser) | `e2e/sparql.spec.ts` | PASS |
 | Large result | 5,000 triples parsed, none dropped | unit | `src/rdf/sparql.test.ts` | done |
-| Large result | Whole lab store (104,090 triples, 20,416 nodes, 25,497 links) | manual | lab VM 127 | FAIL: fetch 3.7 s, parse 0.5 s, `buildGraph` 1.0 s, then the existing renderer had not drawn within 7 min. 2,000 triples (884 nodes) draw in 8 s and 790 triples (191 nodes) in 3 s. Nothing is truncated; a graph this size needs a renderer change, which is out of this plan's scope |
+| Large result | Draw time by node count: 100 nodes 2.3 s, 250 4.0 s, 500 8.3 s, 1,000 15.3 s, 2,000 not drawn in 300 s | manual | headless Chromium | measured; sets `MAX_DRAWN_NODES` |
 | Mixed content | Real https page to http endpoint | — | — | Not run in a browser: the fixture serves over http; covered by the unit check of the pre-flight rule |
 
 ## Validation plan
 
 `npm run test:e2e` builds the app, serves it with `vite preview`, starts an Oxigraph-backed fixture
-endpoint with the variants above, and drives Chromium through every behavior. The central check (B1)
-is shown to fail when the fetch-to-graph path is deliberately broken, then pass when restored.
-Rollback is reverting the merge; nothing is stored server-side and the Turtle path is untouched.
+endpoint with the variants above, and drives Chromium and Firefox through every behavior. The central
+check (B1) is shown to fail when the fetch-to-graph path is deliberately broken, and B5 when the draw
+limit is lifted; both pass when restored.
+Screenshots from the Chromium run are in `evidence/`: `b1-details.png`, `b2-books-only.png`,
+`b3-empty.png`, `b4-cors.png`, `b5-too-large.png` and `b5-neighbourhood.png`. Rollback is reverting the merge; nothing is stored server-side and the Turtle path is untouched.
 
 ## What this change owed the list
 

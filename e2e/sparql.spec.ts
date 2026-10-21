@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { startFixtureEndpoint } from './fixtureEndpoint.ts';
+import { LARGE, startFixtureEndpoint } from './fixtureEndpoint.ts';
 
 const SUPPLIED_QUERY = 'CONSTRUCT { ?s ?p ?o . }\nWHERE { ?s ?p ?o . }\n';
 const FX = 'http://fixture.example/';
@@ -212,6 +212,43 @@ test.describe('B4: failures are reported and a corrected run recovers', () => {
     await run(page, `${endpoint.origin}/sparql`);
     await expectFullFixture(page);
   });
+});
+
+test('B5: a result too large to draw keeps the page responsive and can be explored', async ({ page }) => {
+  test.setTimeout(90_000);
+  const nodes = LARGE.episodes + LARGE.series;
+  const triples = LARGE.series * 2 + LARGE.episodes * 3;
+  await openSparql(page);
+  await run(page, `${endpoint.origin}/large/sparql`);
+
+  // Every triple is loaded and counted; none is dropped to make it fit.
+  await expect(status(page)).toHaveText(
+    `Turtle · ${triples} triples · ${nodes} nodes · ${LARGE.episodes} links`,
+    { timeout: 30_000 },
+  );
+  const message = page.locator('.viewer .empty');
+  await expect(message).toHaveText(new RegExp(`^${nodes.toLocaleString('en')} nodes are too many to draw at once`));
+  await expect(page.locator('.card')).toHaveCount(0);
+  await snapshot(page, 'b5-too-large');
+
+  // Still responsive: the page answers at once and a type's members can be listed and searched.
+  const started = Date.now();
+  await page.evaluate(() => 1);
+  expect(Date.now() - started).toBeLessThan(1_000);
+  const types = page.getByRole('navigation', { name: 'Types' });
+  await expect(types.getByText(`${LARGE.episodes}`, { exact: true })).toBeVisible();
+
+  // A type with more members than can be drawn says so for that view too.
+  await types.getByText(`${SCHEMA}Episode`, { exact: true }).click();
+  await expect(message).toHaveText(new RegExp(`^This view has ${LARGE.episodes.toLocaleString('en')} nodes`));
+
+  // Searching and opening one node draws its neighbourhood: the episode and its series.
+  await types.getByLabel('Search types and nodes').fill('Episode 12345');
+  await types.getByRole('button', { name: 'Episode 12345', exact: true }).click();
+  await expect(card(page, `${FX}episode12345`)).toContainText('Episode 12345');
+  await expect(card(page, `${FX}series45`)).toContainText('Series 45');
+  await expect(page.locator('.card')).toHaveCount(2);
+  await snapshot(page, 'b5-neighbourhood');
 });
 
 test('pasting Turtle still draws it', async ({ page }) => {

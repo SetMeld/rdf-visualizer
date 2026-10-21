@@ -58,6 +58,11 @@ describe('parseTurtle', () => {
     expect(asLinks.links.some((l) => l.predicate.label === 'rdf:type' && l.target.endsWith('Person'))).toBe(true);
   });
 
+  it('labels resources with gist:name, as SetMeld data names them', () => {
+    const graph = parse('<http://e/film> <https://w3id.org/semanticarts/ns/ontology/gist/name> "Interstellar" .');
+    expect(graph.resources[0].displayLabel).toBe('Interstellar');
+  });
+
   it('collapses repeated triples into one link', () => {
     const graph = parse('<a:x> <a:p> <a:y> . <a:x> <a:p> <a:y> .');
     expect(graph.links).toHaveLength(1);

@@ -28,6 +28,8 @@ type Source = 'turtle' | 'sparql';
 
 type SparqlRun = { kind: 'idle' } | { kind: 'running' } | RunResult;
 const PARSE_DELAY_MS = 300;
+/** Layout time grows faster than the node count; past this, drawing stalls the page for many seconds. */
+const MAX_DRAWN_NODES = 500;
 
 type Parsed = {
   /** The last graph that parsed, kept on screen while the text is mid-edit and invalid. */
@@ -101,6 +103,7 @@ export default function App() {
   const focusLost = focus !== null && shown !== null && shown.resources.length === 0;
   const activeFocus = focusLost ? null : focus;
   const shownGraph = focusLost ? graph : shown;
+  const tooLarge = shownGraph !== null && shownGraph.resources.length > MAX_DRAWN_NODES;
   const activeSelection = selection && shownGraph && selectionExists(shownGraph, selection) ? selection : null;
 
   // A different set of things on screen altogether, so it is fitted rather than lined up with the last.
@@ -149,8 +152,12 @@ export default function App() {
           ? { kind: 'done', summary: 'The query returned no triples.', empty: true }
           : { kind: 'done', summary: `${sparqlRun.format} · ${summarize(sparqlGraph!)}`, empty: false };
 
-  const emptyMessage =
-    source === 'turtle'
+  const nodeCount = shownGraph?.resources.length.toLocaleString('en');
+  const emptyMessage = tooLarge
+    ? `${activeFocus ? `This view has ${nodeCount} nodes,` : `${nodeCount} nodes are`} too many to draw at once ` +
+      `(the limit is ${MAX_DRAWN_NODES}). Search on the left and click a node to draw its neighbourhood` +
+      (source === 'sparql' ? ', or narrow the query.' : '.')
+    : source === 'turtle'
       ? error
         ? 'Fix the error to see the graph.'
         : 'Nothing to show yet.'
@@ -170,10 +177,12 @@ export default function App() {
 
   const openResource = (id: string) => {
     setSelection({ kind: 'resource', id });
-    const next = expand(activeFocus, id, neighbors);
+    // A view too large to draw is replaced by the neighbourhood rather than grown.
+    const base = tooLarge ? null : activeFocus;
+    const next = expand(base, id, neighbors);
     if (next !== activeFocus) {
       // Stays where it was clicked, at the same zoom; out of the whole graph, close enough to read.
-      setView((previous) => ({ fitKey: previous.fitKey, anchorId: id, readable: !activeFocus }));
+      setView((previous) => ({ fitKey: previous.fitKey, anchorId: id, readable: !base }));
       setFocus(next);
     } else {
       // Nothing new to show, so no re-layout will bring it into view.
@@ -343,7 +352,7 @@ export default function App() {
               onOpenResource={openResource}
             />
             <div className="viewer__stage">
-              {shownGraph && shownGraph.resources.length > 0 ? (
+              {shownGraph && shownGraph.resources.length > 0 && !tooLarge ? (
                 <RdfGraph
                   ref={graphRef}
                   graph={shownGraph}

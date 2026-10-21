@@ -14,6 +14,18 @@ fx:book1 a schema:Book ; schema:name "Fixture Book One" ; schema:author fx:alice
 fx:book2 a schema:Book ; schema:name "Fixture Book Two" ; schema:isbn "978-1-2345-6789-7" .
 `;
 
+/** Far more nodes than the viewer draws at once: 20,000 episodes, each in one of 100 series. */
+export const LARGE = { episodes: 20_000, series: 100 };
+
+function largeTurtle(): string {
+  const lines = ['@prefix fx: <http://fixture.example/> .', '@prefix schema: <https://schema.org/> .'];
+  for (let s = 0; s < LARGE.series; s++) lines.push(`fx:series${s} a schema:TVSeries ; schema:name "Series ${s}" .`);
+  for (let e = 0; e < LARGE.episodes; e++) {
+    lines.push(`fx:episode${e} a schema:Episode ; schema:name "Episode ${e}" ; schema:partOfSeries fx:series${e % LARGE.series} .`);
+  }
+  return lines.join('\n');
+}
+
 export type RecordedRequest = {
   path: string;
   method: string;
@@ -25,11 +37,14 @@ export type RecordedRequest = {
 /**
  * A SPARQL endpoint backed by Oxigraph, with a variant per failure the viewer must report:
  * `/sparql` answers with CORS, `/nocors/sparql` without, `/fail/sparql` with a 500,
- * `/malformed/sparql` with a body that is not Turtle, and `/hang/sparql` never answers.
+ * `/malformed/sparql` with a body that is not Turtle, `/hang/sparql` never answers, and
+ * `/large/sparql` holds the LARGE graph.
  */
 export async function startFixtureEndpoint() {
   const store = new oxigraph.Store();
   store.load(FIXTURE_TURTLE, { format: 'text/turtle' });
+  const large = new oxigraph.Store();
+  large.load(largeTurtle(), { format: 'text/turtle' });
   const requests: RecordedRequest[] = [];
   const hanging = new Set<ServerResponse>();
 
@@ -54,8 +69,9 @@ export async function startFixtureEndpoint() {
     switch (url.pathname) {
       case '/sparql':
       case '/nocors/sparql':
+      case '/large/sparql':
         try {
-          const turtle = store.query(query ?? '', { results_format: 'text/turtle' }) as string;
+          const turtle = (url.pathname === '/large/sparql' ? large : store).query(query ?? '', { results_format: 'text/turtle' }) as string;
           res.writeHead(200, { ...cors, 'Content-Type': 'text/turtle; charset=utf-8' }).end(turtle);
         } catch (error) {
           res.writeHead(400, { ...cors, 'Content-Type': 'text/plain' }).end(String(error));
