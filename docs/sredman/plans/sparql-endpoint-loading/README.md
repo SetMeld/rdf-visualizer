@@ -80,10 +80,13 @@ Non-goals:
 | B4 | URL missing or invalid; endpoint returns an HTTP error; endpoint unreachable; endpoint without CORS headers; response not parseable RDF; endpoint never answers | Run; then correct the input or switch to a working endpoint and run again | A visible error naming the cause and what to do, no graph presented as a result, no endless loading (a stuck request can be cancelled and times out); the corrected run succeeds | Playwright for each case, then a successful recovery run |
 | B5 | Endpoint returns a graph with more than 5,000 nodes | Run the supplied query | The status gives the full triple and node counts. The graph pane shows one card per type in the data, plus Untyped if any resource has no type, each with its member count, joined by links labelled with predicate and count. The page answers throughout. Clicking a type draws its members if there are at most 5,000, or says the view is too large; searching for a node and opening it draws its neighbourhood | Playwright with a 20,100-node fixture, in Chromium and Firefox; checked by hand against a real 347,715-triple SetMeld store |
 | B6 | Endpoint returns a graph to draw | Run a query returning under 500 nodes, then one returning 500 to 5,000 | Under 500 nodes the graph is laid out left to right, as before; from 500 it is laid out by force. While the layout runs the pane says "Laying out *N* nodes…" and the page keeps answering; the graph appears when the layout is done | Playwright: `data-layout` on the graph pane is `layered` for the 4-node fixture and `force` for a 1,000-node fixture, and the page answers during layout |
+| B7 | SPARQL tab is the source; endpoint and query filled in | Press Ctrl-Enter (Cmd-Enter on macOS) with focus in the query, the endpoint field, the type search or nowhere, and with the editor collapsed | The query is sent once and its result drawn, as with Run. Nothing is sent while a run is in flight or from the Turtle tab | Playwright in Chromium and Firefox: the fixture records exactly one request carrying the query, and the result cards appear |
 
 B5 and B6 were added once a run against a whole 104k-triple store froze the browser. The operator
 then set the layouts (dagre under 500 nodes, force-directed above) and asked for the type overview in
-place of an empty pane. Both add to B1–B4 and change none of them.
+place of an empty pane. B7 records the operator's report that Ctrl-Enter did nothing outside the
+query field, and the requirement that it run the query from anywhere. All three add to B1–B4 and
+change none of them.
 
 The existing paste workflow keeps passing its own check: the Turtle tab draws pasted Turtle as before.
 
@@ -97,8 +100,10 @@ active tab's graph; switching tabs refits the view and clears focus and selectio
 The SPARQL tab holds:
 
 - **Endpoint** — a URL input.
-- **Query** — a textarea, initially the CONSTRUCT above. Tab indents, as in the Turtle editor;
-  ⌘/Ctrl-Enter runs.
+- **Query** — a textarea, initially the CONSTRUCT above. Tab indents, as in the Turtle editor.
+- **⌘/Ctrl-Enter** runs the query from anywhere in the app, whatever has focus and with the editor
+  collapsed, while the SPARQL tab is the source and no run is in flight. `App` listens on the window
+  rather than on the query field, so the shortcut does not depend on where the cursor is.
 - **Run** — becomes **Cancel** while a request is in flight. The two are separate elements: one
   element changing type mid-click would submit the form again as the cancel lands.
 - A status line (`role="status"`): `Running…`, the triple/node/link counts after a result, `The query
@@ -253,6 +258,7 @@ them cards show bare IRIs and search by name finds nothing.
 | Wrong formats | SPARQL results JSON, RDF/XML each give their message | unit | `src/rdf/sparql.test.ts` | done |
 | Validation | Empty, non-URL, non-http, mixed content, localhost exemption, empty query | unit | `src/rdf/sparql.test.ts` | done |
 | Timeout | Abort after 120 s reports a timeout, not a cancel | unit | `src/rdf/sparql.test.ts` | done |
+| B7 shortcut | Ctrl/Cmd-Enter from the query, the endpoint field, the type search, no focus and a collapsed editor sends the query once; both modifiers work; ignored while running and from the Turtle tab | integration (browser) | `e2e/sparql.spec.ts` | PASS |
 | Remembered input | Endpoint and query survive a reload; nothing runs until Run | integration (browser) | `e2e/sparql.spec.ts` | PASS |
 | Large result | 5,000 triples parsed, none dropped | unit | `src/rdf/sparql.test.ts` | done |
 | Large result | Time to place, and slowest page response, by node count: 499 layered 7.3 s / 0.8 s; 500 force 3.6 s / 0.6 s; 1,000 9.4 s / 1.5 s; 2,500 7.0 s / 3.6 s; 5,000 15.7 s / 7.3 s | manual | headless Chromium, no GPU | measured; sets `MAX_DRAWN_NODES` |

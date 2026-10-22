@@ -14,8 +14,8 @@ type Props = {
   onQueryChange: (query: string) => void;
   onRun: () => void;
   onCancel: () => void;
-  /** Tab handling shared with the Turtle editor. */
-  onEditorKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  /** Tab handling shared with the Turtle editor. ⌘/Ctrl-Enter is handled app-wide by App. */
+  onQueryKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
 };
 
 /** An endpoint URL and a CONSTRUCT query, run on demand; the result is drawn by App. */
@@ -27,19 +27,10 @@ export function SparqlPanel({
   onQueryChange,
   onRun,
   onCancel,
-  onEditorKeyDown,
+  onQueryKeyDown,
 }: Props) {
   const running = status.kind === 'running';
   const id = useId();
-
-  const onQueryKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-      event.preventDefault();
-      if (!running) onRun();
-      return;
-    }
-    onEditorKeyDown(event);
-  };
 
   return (
     <form

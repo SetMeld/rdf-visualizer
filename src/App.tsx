@@ -238,18 +238,28 @@ export default function App() {
     }
   };
 
-  // The key listener is bound once, so it reaches the current `reset` through a ref.
-  const resetRef = useRef(reset);
+  // The key listener is bound once, so it reaches the current handlers through a ref.
+  const keysRef = useRef({ reset, runShortcut: () => {} });
   useEffect(() => {
-    resetRef.current = reset;
+    keysRef.current = {
+      reset,
+      runShortcut: () => {
+        if (source === 'sparql' && sparqlStatus.kind !== 'running') void runQuery();
+      },
+    };
   });
 
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        keysRef.current.runShortcut();
+        return;
+      }
       if (event.key !== 'Escape') return;
       const target = event.target as HTMLElement;
       if (target.closest('textarea, input')) return;
-      resetRef.current();
+      keysRef.current.reset();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -305,7 +315,7 @@ export default function App() {
                 onQueryChange={setQuery}
                 onRun={runQuery}
                 onCancel={cancelQuery}
-                onEditorKeyDown={insertTab}
+                onQueryKeyDown={insertTab}
               />
             ) : (
               <>

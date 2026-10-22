@@ -291,6 +291,67 @@ test('B6: a graph of 500 or more nodes is laid out by force, off the main thread
   await snapshot(page, 'b6-force');
 });
 
+test.describe('B7: Ctrl-Enter (Cmd-Enter on macOS) runs the query from anywhere in the app', () => {
+  const books = `PREFIX schema: <${SCHEMA}>\nCONSTRUCT { ?s ?p ?o . } WHERE { ?s a schema:Book ; ?p ?o . }`;
+
+  async function prepare(page: Page) {
+    await openSparql(page);
+    await endpointInput(page).fill(`${endpoint.origin}/sparql`);
+    await queryInput(page).fill(books);
+  }
+
+  async function expectRanOnce(page: Page) {
+    await expect(status(page)).toHaveText('Turtle · 6 triples · 3 nodes · 1 links');
+    await expect(card(page, `${FX}book2`)).toContainText('Fixture Book Two');
+    expect(endpoint.requests.map((r) => r.query)).toEqual([books]);
+  }
+
+  for (const [where, focus] of [
+    ['the query editor', (page: Page) => queryInput(page).focus()],
+    ['the endpoint field', (page: Page) => endpointInput(page).focus()],
+    ['the type search', (page: Page) => page.getByLabel('Search types and nodes').focus()],
+    ['nothing in particular', (page: Page) => page.locator('body').click({ position: { x: 5, y: 5 } })],
+  ] as const) {
+    test(`with focus on ${where}`, async ({ page }) => {
+      await prepare(page);
+      await focus(page);
+      await page.keyboard.press('ControlOrMeta+Enter');
+      await expectRanOnce(page);
+    });
+  }
+
+  test('with the editor collapsed', async ({ page }) => {
+    await prepare(page);
+    await page.getByRole('button', { name: 'Hide editor' }).click();
+    await expect(queryInput(page)).toHaveCount(0);
+    await page.keyboard.press('ControlOrMeta+Enter');
+    await expect(page.locator('.card')).toHaveCount(3);
+    await expect(card(page, `${FX}book2`)).toContainText('Fixture Book Two');
+    expect(endpoint.requests.map((r) => r.query)).toEqual([books]);
+  });
+
+  test('both Ctrl-Enter and Cmd-Enter', async ({ page }) => {
+    await prepare(page);
+    await page.keyboard.press('Control+Enter');
+    await expectRanOnce(page);
+    await page.keyboard.press('Meta+Enter');
+    await expect.poll(() => endpoint.requests.length).toBe(2);
+  });
+
+  test('not while a run is in flight, and not from the Turtle tab', async ({ page }) => {
+    await openSparql(page);
+    await endpointInput(page).fill(`${endpoint.origin}/hang/sparql`);
+    await page.keyboard.press('ControlOrMeta+Enter');
+    await expect(status(page)).toHaveText('Running…');
+    await page.keyboard.press('ControlOrMeta+Enter');
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await page.getByRole('tab', { name: 'Turtle' }).click();
+    await page.keyboard.press('ControlOrMeta+Enter');
+    await page.waitForTimeout(300);
+    expect(endpoint.requests.map((r) => r.path)).toEqual(['/hang/sparql']);
+  });
+});
+
 test('pasting Turtle still draws it', async ({ page }) => {
   await page.goto('./');
   await page.getByLabel('Turtle input').locator('textarea').fill(`<${FX}pasted> <${FOAF}name> "Pasted Node" .`);
