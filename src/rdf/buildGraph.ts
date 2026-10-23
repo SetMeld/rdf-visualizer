@@ -14,6 +14,7 @@ const LABEL_PREDICATES = [
   'http://xmlns.com/foaf/0.1/name',
   'http://purl.org/dc/terms/title',
   'http://purl.org/dc/elements/1.1/title',
+  'https://w3id.org/semanticarts/ns/ontology/gist/name',
 ];
 
 export type IriRef = {

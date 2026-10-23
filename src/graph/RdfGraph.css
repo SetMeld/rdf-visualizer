@@ -13,6 +13,24 @@
   inset: 0;
 }
 
+.graph--pending .graph__canvas,
+.graph--pending .graph__cards {
+  visibility: hidden;
+}
+
+.graph__notice {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  z-index: 2;
+}
+
+.graph__notice--error {
+  color: var(--error);
+}
+
 /* Moved and scaled to match Cytoscape's viewport; never in the way of the canvas's own pointer handling. */
 .graph__cards {
   position: absolute;
@@ -26,6 +44,8 @@
   position: absolute;
   top: 0;
   left: 0;
+  /* Each card's layout and paint stay its own, so thousands of them don't relayout one another. */
+  contain: layout style paint;
   box-sizing: border-box;
   border-radius: 8px;
   overflow: hidden;
