@@ -3,9 +3,8 @@ import cytoscape, { type Core, type ElementDefinition, type NodeSingular } from 
 import type { RdfGraph as RdfGraphModel } from '../rdf/buildGraph';
 import { colorFor } from '../rdf/terms';
 import { layoutFor } from './layout';
-import { layoutInWorker } from './layoutClient';
+import { layoutInWorker, type CreateLayoutWorker } from './layoutClient';
 import { CARD_WIDTH, ResourceCard } from './ResourceCard';
-import './RdfGraph.css';
 
 /** Life size. A graph too small to fill the pane is shown small rather than magnified. */
 const MAX_ZOOM_ON_FIT = 1;
@@ -33,6 +32,8 @@ type Props = {
   onReset: () => void;
   hiddenNeighbors: (id: string) => number;
   view: ViewRequest;
+  /** Starts the layout worker, for a bundler that does not build `new Worker(new URL(…))`. */
+  createLayoutWorker?: CreateLayoutWorker;
   ref?: Ref<RdfGraphHandle>;
 };
 
@@ -70,6 +71,7 @@ export function RdfGraph({
   onReset,
   hiddenNeighbors,
   view,
+  createLayoutWorker,
   ref,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -143,7 +145,7 @@ export function RdfGraph({
       nodes: cy.nodes().map((node) => ({ id: node.id(), width: node.data('width'), height: node.data('height') })),
       edges: graph.links.map(({ id, source, target }) => ({ id, source, target })),
       algorithm,
-    });
+    }, createLayoutWorker);
     job.promise.then(
       (positions) => {
         cy.nodes().positions((node) => positions[(node as NodeSingular).id()]);

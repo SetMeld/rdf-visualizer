@@ -1,6 +1,5 @@
 import { useState, type MouseEvent } from 'react';
 import { UNTYPED, resourceName, type TypeGroup } from './rdf/focus';
-import './TypeNav.css';
 
 /** Past this, a type's member list asks for a search instead of rendering thousands of rows. */
 const MEMBER_LIMIT = 200;
