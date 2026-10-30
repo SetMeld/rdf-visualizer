@@ -1,3 +1,5 @@
+/** @jsxRuntime automatic */
+/** @jsxImportSource react */
 import type { Resource } from '../rdf/buildGraph';
 import { stripes } from '../rdf/terms';
 

@@ -1,0 +1,5 @@
+/* Everything GraphExplorer draws, themed inside its own `.rdf-theme` root. */
+@import '../theme.css';
+@import '../TypeNav.css';
+@import '../graph/RdfGraph.css';
+@import '../GraphExplorer.css';

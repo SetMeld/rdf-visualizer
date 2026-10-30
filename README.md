@@ -41,6 +41,38 @@ what the viewer asks for. A response with no `Content-Type` or `text/plain` is r
 RDF/XML and JSON-LD are not read, and SELECT or ASK results are not graphs — use `CONSTRUCT` or
 `DESCRIBE`.
 
+## Using the explorer in another app
+
+The graph pane (the type list, the graph and the details panel) is also a library, for an app that
+already has its triples and only needs them drawn. It fetches nothing. Install it from git, pinned to
+a commit; it is not published to a registry:
+
+```sh
+pnpm add 'github:SetMeld/rdf-visualizer#<commit>'
+```
+
+```tsx
+import { GraphExplorer, parseTurtle } from 'rdf-visualizer';
+import 'rdf-visualizer/explorer.css';
+
+const result = parseTurtle(turtle, { typesAsLinks });
+<GraphExplorer
+  graph={result.ok ? result.graph : null}
+  emptyMessage="Nothing published yet."
+  typesAsLinks={typesAsLinks}
+  onTypesAsLinksChange={setTypesAsLinks}
+/>;
+```
+
+The package exports TypeScript source, so the app's bundler compiles it (in Next.js, list it in
+`transpilePackages`). React is a peer dependency. A new `graph` keeps the person's focus and selection
+wherever they still exist; change `resetKey` to return to the whole graph. Its styles and colours are
+scoped to the explorer's own root, so they do not reach the rest of the page.
+
+The layout runs in a module worker. Where the bundler does not build
+`new Worker(new URL(…, import.meta.url))`, pass `createLayoutWorker`; where no worker can start at all,
+as in a sandbox whose content security policy refuses workers, the layout runs on the page instead.
+
 ## Development
 
 ```sh

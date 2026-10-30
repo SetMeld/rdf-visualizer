@@ -1,3 +1,6 @@
+// An app compiling this package from source sees the declaration only through this reference.
+// oxlint-disable-next-line typescript/triple-slash-reference
+/// <reference path="../types/cytoscape-fcose.d.ts" />
 import cytoscape from 'cytoscape';
 import dagre from 'cytoscape-dagre';
 import fcose from 'cytoscape-fcose';

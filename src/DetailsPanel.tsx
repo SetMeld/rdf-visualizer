@@ -1,3 +1,5 @@
+/** @jsxRuntime automatic */
+/** @jsxImportSource react */
 import type { ReactNode } from 'react';
 import type { Link, RdfGraph, Resource } from './rdf/buildGraph';
 import type { Selection } from './graph/RdfGraph';
