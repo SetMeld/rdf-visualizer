@@ -1,3 +1,5 @@
+/** @jsxRuntime automatic */
+/** @jsxImportSource react */
 import { useState, type MouseEvent } from 'react';
 import { UNTYPED, resourceName, type TypeGroup } from './rdf/focus';
 

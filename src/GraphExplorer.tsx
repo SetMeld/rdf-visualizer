@@ -1,3 +1,5 @@
+/** @jsxRuntime automatic */
+/** @jsxImportSource react */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { DetailsPanel } from './DetailsPanel';
 import { RdfGraph, type RdfGraphHandle, type Selection, type ViewRequest } from './graph/RdfGraph';
