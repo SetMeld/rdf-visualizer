@@ -16,6 +16,8 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@types/cytoscape-dagre": "^2.3.4",
+    "@types/n3": "^1.26.4",
     "cytoscape": "^3.34.3",
     "cytoscape-dagre": "^4.0.1",
     "cytoscape-fcose": "^2.2.0",
@@ -27,8 +29,6 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
-    "@types/cytoscape-dagre": "^2.3.4",
-    "@types/n3": "^1.26.4",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
