@@ -69,6 +69,11 @@ The package exports TypeScript source, so the app's bundler compiles it (in Next
 wherever they still exist; change `resetKey` to return to the whole graph. Its styles and colours are
 scoped to the explorer's own root, so they do not reach the rest of the page.
 
+For a graph too large to hand over, pass `summary` instead: each type's member count and the
+counted links between types. The explorer draws them as its type overview, and clicking a type, on
+the graph or in the type list, calls `onOpenType` with its IRI so the app can load its members.
+`onLeave`, when given, is called by **Whole graph** or Esc with nothing focused, to return to it.
+
 The layout runs in a module worker. Where the bundler does not build
 `new Worker(new URL(…, import.meta.url))`, pass `createLayoutWorker`; where no worker can start at all,
 as in a sandbox whose content security policy refuses workers, the layout runs on the page instead.
