@@ -8,6 +8,7 @@ import {
   groupByType,
   hiddenNeighborCount,
   indexNeighbors,
+  reveal,
   visibleGraph,
 } from './focus';
 
@@ -69,5 +70,20 @@ describe('focus', () => {
     expect(visible.links.map((link) => link.predicate.iri)).toEqual([iri('knows')]);
     expect(hiddenNeighborCount(iri('b'), focus, neighbors)).toBe(1);
     expect(visibleGraph(g, null)).toBe(g);
+  });
+
+  it('reveals the neighbours a larger graph brings to an opened resource that is on screen', () => {
+    // b was opened when only a and b were loaded; the graph then grew to bring in c.
+    const before = parseTurtle(`@prefix : <http://ex.org/> . :a :knows :b .`);
+    if (!before.ok) throw new Error(before.error);
+    const focus = expand(null, iri('b'), indexNeighbors(before.graph));
+    expect(ids(focus?.visible)).toEqual(['a', 'b']);
+
+    const grown = reveal(focus, [iri('b')], neighbors);
+    expect(ids(grown?.visible)).toEqual(['a', 'b', 'c']);
+    // Nothing new, an opened resource that is off screen, and the whole graph are left as they are.
+    expect(reveal(grown, [iri('b')], neighbors)).toBe(grown);
+    expect(reveal(focus, [iri('d')], neighbors)).toBe(focus);
+    expect(reveal(null, [iri('b')], neighbors)).toBeNull();
   });
 });

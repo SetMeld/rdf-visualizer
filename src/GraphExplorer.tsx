@@ -12,6 +12,7 @@ import {
   groupByType,
   hiddenNeighborCount,
   indexNeighbors,
+  reveal,
   visibleGraph,
   type Focus,
 } from './rdf/focus';
@@ -41,6 +42,12 @@ export type GraphExplorerProps = {
   onOpenType?: (type: string) => void;
   /** Called by Whole graph or Esc when nothing is focused, to leave what `graph` shows. */
   onLeave?: () => void;
+  /**
+   * Called when a resource is opened, for an app that loads `graph` a part at a time to add the
+   * resource's neighbours to it. They are drawn when the larger graph arrives, and what is on
+   * screen stays; opening a resource in a whole graph that can be drawn no longer narrows it.
+   */
+  onExpandResource?: (id: string) => void;
 };
 
 /**
@@ -59,8 +66,11 @@ export function GraphExplorer({
   summary,
   onOpenType,
   onLeave,
+  onExpandResource,
 }: GraphExplorerProps) {
   const [focus, setFocus] = useState<Focus>(null);
+  // The resources opened since the view was last reset, whose neighbours a larger graph may bring.
+  const [opened, setOpened] = useState<readonly string[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
   const [view, setView] = useState<ViewRequest>({ fitKey: 0 });
   const graphRef = useRef<RdfGraphHandle>(null);
@@ -76,11 +86,13 @@ export function GraphExplorer({
           : [],
     [graph, summaryGraph],
   );
-  const shown = useMemo(() => (graph ? visibleGraph(graph, focus) : null), [graph, focus]);
+  // A graph grown by the app brings the neighbours of what was opened into view beside what is shown.
+  const revealed = useMemo(() => reveal(focus, opened, neighbors), [focus, opened, neighbors]);
+  const shown = useMemo(() => (graph ? visibleGraph(graph, revealed) : null), [graph, revealed]);
 
   // An edit can remove everything that was in focus; fall back to the whole graph rather than nothing.
-  const focusLost = focus !== null && shown !== null && shown.resources.length === 0;
-  const activeFocus = focusLost ? null : focus;
+  const focusLost = revealed !== null && shown !== null && shown.resources.length === 0;
+  const activeFocus = focusLost ? null : revealed;
   const shownGraph = focusLost ? graph : shown;
   const tooLarge = shownGraph !== null && shownGraph.resources.length > MAX_DRAWN_NODES;
   // A whole graph too large to draw opens on its types instead.
@@ -106,7 +118,9 @@ export function GraphExplorer({
     refit();
     setFocus(null);
     setSelection(null);
+    setOpened([]);
   }, [resetKey]);
+
 
   const nodeCount = shownGraph?.resources.length.toLocaleString('en');
   const emptyMessage = tooLarge
@@ -123,10 +137,21 @@ export function GraphExplorer({
     if (activeFocus) refit();
     setFocus(null);
     setSelection(null);
+    setOpened([]);
   };
 
   const openResource = (id: string) => {
     setSelection({ kind: 'resource', id });
+    if (onExpandResource) {
+      setOpened((previous) => (previous.includes(id) ? previous : [...previous, id]));
+      onExpandResource(id);
+      if (!activeFocus && !tooLarge) {
+        // Everything loaded is on screen already; the neighbours join it when they arrive.
+        setView((previous) => ({ fitKey: previous.fitKey, anchorId: id }));
+        graphRef.current?.focus(id);
+        return;
+      }
+    }
     // A view too large to draw is replaced by the neighbourhood rather than grown.
     const base = tooLarge ? null : activeFocus;
     const next = expand(base, id, neighbors);
@@ -141,6 +166,7 @@ export function GraphExplorer({
   };
 
   const closeResource = (id: string) => {
+    setOpened((previous) => previous.filter((other) => other !== id));
     const next = close(activeFocus, id);
     if (next) {
       const anchorId = selection?.kind === 'resource' && selection.id !== id ? selection.id : undefined;

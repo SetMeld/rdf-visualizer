@@ -74,6 +74,10 @@ counted links between types. The explorer draws them as its type overview, and c
 the graph or in the type list, calls `onOpenType` with its IRI so the app can load its members.
 `onLeave`, when given, is called by **Whole graph** or Esc with nothing focused, to return to it.
 
+An app that loads the graph a part at a time passes `onExpandResource`. Opening a resource then calls
+it with the resource's IRI, so the app can add the resource's neighbours to `graph`. They are drawn
+when the larger graph arrives, and what is already on screen stays.
+
 The layout runs in a module worker. Where the bundler does not build
 `new Worker(new URL(…, import.meta.url))`, pass `createLayoutWorker`; where no worker can start at all,
 as in a sandbox whose content security policy refuses workers, the layout runs on the page instead.
