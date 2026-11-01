@@ -53,6 +53,26 @@ describe('computeLayout', () => {
     expect(grid.top > chainBox.bottom || grid.left > chainBox.right).toBe(true);
   });
 
+  it('packs separate linked groups side by side rather than stacking them in one column', () => {
+    const pairs = Array.from({ length: 40 }, (_, i) => i);
+    const positions = computeLayout({
+      nodes: pairs.flatMap((i) => [{ id: `a${i}`, width: 260, height: 80 }, { id: `b${i}`, width: 260, height: 80 }]),
+      edges: pairs.map((i) => ({ id: `e${i}`, source: `a${i}`, target: `b${i}` })),
+      algorithm: 'layered',
+    });
+    const ys = Object.values(positions).map((p) => p.y), xs = Object.values(positions).map((p) => p.x);
+    const height = Math.max(...ys) - Math.min(...ys), width = Math.max(...xs) - Math.min(...xs);
+    // Forty pairs stacked are over 5,000 high and 400 wide; packed, the whole is no taller than wide.
+    expect(height).toBeLessThan(width);
+    // Each pair keeps its own left-to-right order and its two cards stay together.
+    for (const i of pairs) {
+      expect(positions[`a${i}`].x).toBeLessThan(positions[`b${i}`].x);
+      expect(Math.abs(positions[`a${i}`].y - positions[`b${i}`].y)).toBeLessThan(200);
+    }
+    const distinct = new Set(Object.values(positions).map(({ x, y }) => `${Math.round(x)},${Math.round(y)}`));
+    expect(distinct.size).toBe(80);
+  });
+
   it('places a node whose only link is to itself in the grid, and a graph with nothing linked', () => {
     const loops = [0, 1, 2].map((i) => ({ id: `self${i}`, width: 260, height: 80 }));
     const positions = computeLayout({
