@@ -15,7 +15,7 @@ import {
   visibleGraph,
   type Focus,
 } from './rdf/focus';
-import { overviewTypeKey, typeOverview } from './rdf/overview';
+import { overviewTypeKey, summaryOverview, typeOverview, type TypeSummary } from './rdf/overview';
 import { TypeNav } from './TypeNav';
 
 /** Past this, laying out and drawing a card per node takes longer than anyone will wait. */
@@ -35,6 +35,12 @@ export type GraphExplorerProps = {
   /** Changed to return to the whole graph, fitted to the screen, as when a different graph is loaded. */
   resetKey?: unknown;
   createLayoutWorker?: CreateLayoutWorker;
+  /** Counts to draw as the type overview in place of `graph`, for a graph too large to hand over whole. */
+  summary?: TypeSummary | null;
+  /** A type chosen from the summary's overview or type list. */
+  onOpenType?: (type: string) => void;
+  /** Called by Whole graph or Esc when nothing is focused, to leave what `graph` shows. */
+  onLeave?: () => void;
 };
 
 /**
@@ -50,6 +56,9 @@ export function GraphExplorer({
   onTypesAsLinksChange,
   resetKey,
   createLayoutWorker,
+  summary,
+  onOpenType,
+  onLeave,
 }: GraphExplorerProps) {
   const [focus, setFocus] = useState<Focus>(null);
   const [selection, setSelection] = useState<Selection>(null);
@@ -57,7 +66,16 @@ export function GraphExplorer({
   const graphRef = useRef<RdfGraphHandle>(null);
 
   const neighbors = useMemo(() => (graph ? indexNeighbors(graph) : new Map()), [graph]);
-  const typeGroups = useMemo(() => (graph ? groupByType(graph) : []), [graph]);
+  const summaryGraph = useMemo(() => (summary ? summaryOverview(summary) : null), [summary]);
+  const typeGroups = useMemo(
+    () =>
+      summaryGraph
+        ? summaryGraph.resources.map((type) => ({ key: overviewTypeKey(type.id), type: type.types[0], members: [] }))
+        : graph
+          ? groupByType(graph)
+          : [],
+    [graph, summaryGraph],
+  );
   const shown = useMemo(() => (graph ? visibleGraph(graph, focus) : null), [graph, focus]);
 
   // An edit can remove everything that was in focus; fall back to the whole graph rather than nothing.
@@ -67,9 +85,14 @@ export function GraphExplorer({
   const tooLarge = shownGraph !== null && shownGraph.resources.length > MAX_DRAWN_NODES;
   // A whole graph too large to draw opens on its types instead.
   const showOverview = tooLarge && !activeFocus;
-  const overview = useMemo(
-    () => (showOverview && graph ? typeOverview(graph, typeGroups) : null),
-    [showOverview, graph, typeGroups],
+  const wholeOverview = useMemo(
+    () => (showOverview && graph && !summaryGraph ? typeOverview(graph, typeGroups) : null),
+    [showOverview, graph, typeGroups, summaryGraph],
+  );
+  const overview = summaryGraph ?? wholeOverview;
+  const typeCounts = useMemo(
+    () => summary && Object.fromEntries(summary.types.map((type) => [type.iri, type.members])),
+    [summary],
   );
   const activeSelection = selection && shownGraph && selectionExists(shownGraph, selection) ? selection : null;
 
@@ -93,6 +116,10 @@ export function GraphExplorer({
     : idleMessage;
 
   const reset = () => {
+    if (!activeFocus && onLeave) {
+      onLeave();
+      return;
+    }
     if (activeFocus) refit();
     setFocus(null);
     setSelection(null);
@@ -174,10 +201,15 @@ export function GraphExplorer({
   return (
     <section className="viewer rdf-theme" aria-label="Graph">
       <div className="toolbar">
-        <button type="button" onClick={reset} disabled={!activeFocus}>
+        <button type="button" onClick={reset} disabled={!activeFocus && !onLeave}>
           ⟲ Whole graph
         </button>
-        {graph && shownGraph && (
+        {summaryGraph && (
+          <span className="toolbar__summary">
+            {`${summaryGraph.resources.length} types · click a type to show its members`}
+          </span>
+        )}
+        {!summaryGraph && graph && shownGraph && (
           <span className="toolbar__summary">
             {overview
               ? `${graph.resources.length.toLocaleString('en')} nodes in ${overview.resources.length} types · click a type to show its members`
@@ -196,9 +228,10 @@ export function GraphExplorer({
         <TypeNav
           groups={typeGroups}
           typeColors={graph?.typeColors ?? {}}
-          activeTypes={activeFocus?.types ?? []}
+          activeTypes={summaryGraph ? [] : (activeFocus?.types ?? [])}
+          counts={typeCounts ?? undefined}
           selectedId={activeSelection?.kind === 'resource' ? activeSelection.id : undefined}
-          onFilterType={filterType}
+          onFilterType={summaryGraph ? (key) => onOpenType?.(key) : filterType}
           onOpenResource={openResource}
         />
         <div className="viewer__stage">
@@ -208,7 +241,9 @@ export function GraphExplorer({
               graph={overview}
               selection={null}
               onSelect={() => {}}
-              onOpenResource={(id) => filterType(overviewTypeKey(id), false)}
+              onOpenResource={(id) =>
+                summaryGraph ? onOpenType?.(overviewTypeKey(id)) : filterType(overviewTypeKey(id), false)
+              }
               onReset={reset}
               hiddenNeighbors={() => 0}
               view={view}

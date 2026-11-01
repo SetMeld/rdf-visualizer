@@ -11,13 +11,15 @@ type Props = {
   typeColors: Record<string, string>;
   activeTypes: readonly string[];
   selectedId?: string;
+  /** Each type's member count, where `groups` carry no members of their own. */
+  counts?: Readonly<Record<string, number>>;
   /** `additive` when the click held ⌘ or Ctrl, to add the type to the filter rather than replace it. */
   onFilterType: (key: string, additive: boolean) => void;
   onOpenResource: (id: string) => void;
 };
 
 /** Every rdf:type in the graph, each expandable to the resources that have it. */
-export function TypeNav({ groups, typeColors, activeTypes, selectedId, onFilterType, onOpenResource }: Props) {
+export function TypeNav({ groups, typeColors, activeTypes, selectedId, counts, onFilterType, onOpenResource }: Props) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [query, setQuery] = useState('');
   const needle = query.trim().toLowerCase();
@@ -83,7 +85,7 @@ export function TypeNav({ groups, typeColors, activeTypes, selectedId, onFilterT
                     style={{ background: typeColors[group.key] ?? 'var(--untyped-header)' }}
                   />
                   <span className="type-nav__label">{title}</span>
-                  <span className="type-nav__count">{group.members.length}</span>
+                  <span className="type-nav__count">{counts?.[group.key] ?? group.members.length}</span>
                 </button>
               </div>
               {open && (
