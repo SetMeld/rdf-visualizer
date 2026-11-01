@@ -76,6 +76,19 @@ export function expand(focus: Focus, id: string, neighbors: Neighbors): Focus {
   return { visible, types: focus?.types ?? [] };
 }
 
+/**
+ * Show the neighbours a grown graph has brought to resources that were opened and are still on
+ * screen. The whole graph, and a focus with nothing new to show, are returned as they are.
+ */
+export function reveal(focus: Focus, opened: readonly string[], neighbors: Neighbors): Focus {
+  if (!focus) return null;
+  let next = focus;
+  for (const id of opened) {
+    if (next.visible.has(id)) next = expand(next, id, neighbors) ?? next;
+  }
+  return next;
+}
+
 export function close(focus: Focus, id: string): Focus {
   if (!focus) return null;
   const visible = new Set(focus.visible);
