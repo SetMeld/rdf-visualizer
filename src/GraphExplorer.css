@@ -53,9 +53,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The host's figures give way before the node count does. */
+/* The host's figures take what the rest leaves, so they shorten before the node count does. */
 .toolbar__notice {
-  flex-shrink: 20;
+  flex: 1 1 0;
 }
 
 .toolbar__stale {
