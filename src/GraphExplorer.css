@@ -53,6 +53,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The host's figures give way before the node count does. */
+.toolbar__notice {
+  flex-shrink: 20;
+}
+
 .toolbar__stale {
   color: var(--error);
 }
