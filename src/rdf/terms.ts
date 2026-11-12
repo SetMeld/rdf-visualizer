@@ -37,12 +37,17 @@ export const PALETTE = [
 ];
 
 /** A stable color for a predicate, so the same IRI looks the same everywhere it appears. */
-export function colorFor(iri: string): string {
+export function colorFor(iri: string, palette: readonly string[] = PALETTE): string {
   let hash = 0;
   for (let i = 0; i < iri.length; i += 1) {
     hash = (hash * 31 + iri.charCodeAt(i)) >>> 0;
   }
-  return PALETTE[hash % PALETTE.length];
+  return palette[hash % palette.length];
+}
+
+/** `typeColors` in `palette`'s colors: the types come most common first, so the main ones never clash. */
+export function paintTypes(typeColors: Record<string, string>, palette: readonly string[]): Record<string, string> {
+  return Object.fromEntries(Object.keys(typeColors).map((iri, i) => [iri, palette[i % palette.length]]));
 }
 
 /** Diagonal stripes, one per color: how a card with several rdf:types shows all of them. */

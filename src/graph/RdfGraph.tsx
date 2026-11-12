@@ -3,7 +3,8 @@
 import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type Ref } from 'react';
 import cytoscape, { type Core, type ElementDefinition, type NodeSingular } from 'cytoscape';
 import type { RdfGraph as RdfGraphModel } from '../rdf/buildGraph';
-import { colorFor } from '../rdf/terms';
+import { colorFor, PALETTE } from '../rdf/terms';
+import { canvasColor } from './canvasColor';
 import { layoutFor } from './layout';
 import { layoutInWorker, type CreateLayoutWorker } from './layoutClient';
 import { CARD_WIDTH, ResourceCard } from './ResourceCard';
@@ -36,6 +37,10 @@ type Props = {
   view: ViewRequest;
   /** Starts the layout worker, for a bundler that does not build `new Worker(new URL(…))`. */
   createLayoutWorker?: CreateLayoutWorker;
+  /** The colors links are drawn in; any CSS color, resolved against the theme in force. */
+  palette?: readonly string[];
+  /** Changed when the theme does, to redraw the canvas in the new theme's colors. */
+  colorScheme?: 'light' | 'dark';
   ref?: Ref<RdfGraphHandle>;
 };
 
@@ -74,11 +79,16 @@ export function RdfGraph({
   hiddenNeighbors,
   view,
   createLayoutWorker,
+  palette = PALETTE,
+  colorScheme,
   ref,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const layerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
+  const cyRestyle = useRef<(() => void) | null>(null);
+  const paletteRef = useRef(palette);
+  paletteRef.current = palette;
   const lastView = useRef<ViewSnapshot | null>(null);
   /** Hidden until the worker has placed every node, so nothing is drawn piled up at the origin. */
   const [layout, setLayout] = useState<{ pending: boolean; error?: string }>({ pending: true });
@@ -108,7 +118,8 @@ export function RdfGraph({
           source: link.source,
           target: link.target,
           label: link.predicate.label,
-          color: colorFor(link.predicate.iri),
+          predicate: link.predicate.iri,
+          color: canvasColor(colorFor(link.predicate.iri, paletteRef.current), container, EDGE_FALLBACK),
         },
       })),
     ];
@@ -175,13 +186,15 @@ export function RdfGraph({
     cy.on('mouseout', 'node, edge', () => (container.style.cursor = ''));
 
     // Edge colours are drawn on a canvas, out of reach of CSS, so they are re-read on a theme change.
-    const colorScheme = window.matchMedia('(prefers-color-scheme: dark)');
-    const restyle = () => cy.style(graphStyle(container, large));
-    colorScheme.addEventListener('change', restyle);
+    const osColorScheme = window.matchMedia('(prefers-color-scheme: dark)');
+    const restyle = () => restyleCanvas(cy, container, large, paletteRef.current);
+    cyRestyle.current = restyle;
+    osColorScheme.addEventListener('change', restyle);
 
     return () => {
       job.cancel();
-      colorScheme.removeEventListener('change', restyle);
+      osColorScheme.removeEventListener('change', restyle);
+      cyRestyle.current = null;
       // A graph replaced before it was placed has no view worth lining the next one up with.
       if (placed) {
         lastView.current = {
@@ -196,6 +209,9 @@ export function RdfGraph({
     // Only a new graph rebuilds the view; `view` is read as it stands when that happens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graph]);
+
+  // The canvas is out of reach of CSS, so a new theme or palette is drawn by reading its colors again.
+  useEffect(() => cyRestyle.current?.(), [colorScheme, palette]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -320,10 +336,21 @@ function fitView(cy: Core) {
   }
 }
 
+const EDGE_FALLBACK = '#6b7280';
+
+/** Every color Cytoscape is given is hex: the tokens are resolved against the theme in force now. */
+function restyleCanvas(cy: Core, container: HTMLElement, large: boolean, palette: readonly string[]) {
+  cy.style(graphStyle(container, large));
+  cy.edges().forEach((edge) => {
+    edge.data('color', canvasColor(colorFor(edge.data('predicate'), palette), container, EDGE_FALLBACK));
+  });
+}
+
 /** `large` graphs get straight, unlabelled edges, labelled only once selected; curves and labels cost seconds there. */
 function graphStyle(container: HTMLElement, large: boolean): cytoscape.StylesheetJson {
   const css = getComputedStyle(container);
   const token = (name: string) => css.getPropertyValue(name).trim();
+  const color = (name: string, fallback: string) => canvasColor(token(name), container, fallback);
 
   return [
     {
@@ -350,9 +377,9 @@ function graphStyle(container: HTMLElement, large: boolean): cytoscape.Styleshee
         label: 'data(label)',
         'font-size': 11,
         'font-family': token('--font-mono'),
-        color: token('--edge-label'),
+        color: color('--edge-label', '#1f2937'),
         'text-rotation': 'autorotate',
-        'text-background-color': token('--edge-label-bg'),
+        'text-background-color': color('--edge-label-bg', '#ffffff'),
         'text-background-opacity': 0.92,
         'text-background-padding': '3px',
         'text-background-shape': 'roundrectangle',

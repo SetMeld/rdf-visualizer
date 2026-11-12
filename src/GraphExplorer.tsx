@@ -15,6 +15,7 @@ import {
   visibleGraph,
   type Focus,
 } from './rdf/focus';
+import { paintTypes } from './rdf/terms';
 import { overviewTypeKey, summaryOverview, typeOverview, type TypeSummary } from './rdf/overview';
 import { TypeNav } from './TypeNav';
 
@@ -28,8 +29,14 @@ export type GraphExplorerProps = {
   emptyMessage: string;
   /** Ends the message for a view too large to draw, after "click a node to draw its neighbourhood". */
   tooLargeHint?: string;
+  /** Shown at the start of the toolbar, before Whole graph. */
+  leading?: ReactNode;
   /** Shown in the toolbar after the node count. */
   notice?: ReactNode;
+  /** The colors for types and links, most common type first; any CSS color. Default: the built-in palette. */
+  palette?: readonly string[];
+  /** The theme to draw in, overriding the OS setting that applies when this is unset. */
+  colorScheme?: 'light' | 'dark';
   typesAsLinks: boolean;
   onTypesAsLinksChange: (typesAsLinks: boolean) => void;
   /** Changed to return to the whole graph, fitted to the screen, as when a different graph is loaded. */
@@ -48,10 +55,13 @@ export type GraphExplorerProps = {
  * selection and view that clicking through them builds up. It reads nothing but the graph it is given.
  */
 export function GraphExplorer({
-  graph,
+  graph: given,
   emptyMessage: idleMessage,
   tooLargeHint = '.',
+  leading,
   notice,
+  palette,
+  colorScheme,
   typesAsLinks,
   onTypesAsLinksChange,
   resetKey,
@@ -65,8 +75,15 @@ export function GraphExplorer({
   const [view, setView] = useState<ViewRequest>({ fitKey: 0 });
   const graphRef = useRef<RdfGraphHandle>(null);
 
+  const graph = useMemo(
+    () => (given && palette ? { ...given, typeColors: paintTypes(given.typeColors, palette) } : given),
+    [given, palette],
+  );
   const neighbors = useMemo(() => (graph ? indexNeighbors(graph) : new Map()), [graph]);
-  const summaryGraph = useMemo(() => (summary ? summaryOverview(summary) : null), [summary]);
+  const summaryGraph = useMemo(() => {
+    const overview = summary ? summaryOverview(summary) : null;
+    return overview && palette ? { ...overview, typeColors: paintTypes(overview.typeColors, palette) } : overview;
+  }, [summary, palette]);
   const typeGroups = useMemo(
     () =>
       summaryGraph
@@ -114,6 +131,16 @@ export function GraphExplorer({
       `(the limit is ${MAX_DRAWN_NODES}). Search on the left and click a node to draw its neighbourhood` +
       tooLargeHint
     : idleMessage;
+
+  const summaryText = summaryGraph
+    ? `${summaryGraph.resources.length} types · click a type to show its members`
+    : graph && shownGraph
+      ? overview
+        ? `${graph.resources.length.toLocaleString('en')} nodes in ${overview.resources.length} types · click a type to show its members`
+        : activeFocus
+          ? `Showing ${shownGraph.resources.length} of ${graph.resources.length} nodes`
+          : `${graph.resources.length} nodes`
+      : '';
 
   const reset = () => {
     if (!activeFocus && onLeave) {
@@ -199,26 +226,23 @@ export function GraphExplorer({
   }, []);
 
   return (
-    <section className="viewer rdf-theme" aria-label="Graph">
+    <section className="viewer rdf-theme" aria-label="Graph" data-color-scheme={colorScheme}>
       <div className="toolbar">
+        {leading}
         <button type="button" onClick={reset} disabled={!activeFocus && !onLeave}>
           ⟲ Whole graph
         </button>
         {summaryGraph && (
-          <span className="toolbar__summary">
-            {`${summaryGraph.resources.length} types · click a type to show its members`}
+          <span className="toolbar__summary" title={summaryText}>
+            {summaryText}
           </span>
         )}
         {!summaryGraph && graph && shownGraph && (
-          <span className="toolbar__summary">
-            {overview
-              ? `${graph.resources.length.toLocaleString('en')} nodes in ${overview.resources.length} types · click a type to show its members`
-              : activeFocus
-                ? `Showing ${shownGraph.resources.length} of ${graph.resources.length} nodes`
-                : `${graph.resources.length} nodes`}
+          <span className="toolbar__summary" title={summaryText}>
+            {summaryText}
           </span>
         )}
-        {notice}
+        {notice && <div className="toolbar__notice">{notice}</div>}
         <label className="toggle">
           <input type="checkbox" checked={typesAsLinks} onChange={(e) => onTypesAsLinksChange(e.target.checked)} />
           Draw <code>rdf:type</code> as links
@@ -248,6 +272,8 @@ export function GraphExplorer({
               hiddenNeighbors={() => 0}
               view={view}
               createLayoutWorker={createLayoutWorker}
+              palette={palette}
+              colorScheme={colorScheme}
             />
           ) : shownGraph && shownGraph.resources.length > 0 && !tooLarge ? (
             <RdfGraph
@@ -261,6 +287,8 @@ export function GraphExplorer({
               hiddenNeighbors={(id) => hiddenNeighborCount(id, activeFocus, neighbors)}
               view={view}
               createLayoutWorker={createLayoutWorker}
+              palette={palette}
+              colorScheme={colorScheme}
             />
           ) : (
             <div className="empty">{emptyMessage}</div>

@@ -9,6 +9,16 @@
   font-size: 13px;
 }
 
+/* The explorer's toolbar is one line at any width: the controls keep their size and the figures give way. */
+.viewer > .toolbar {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+:where(.viewer > .toolbar) > * {
+  flex: none;
+}
+
 .toolbar__title {
   font-weight: 600;
   color: var(--text-strong);
@@ -33,9 +43,23 @@
   cursor: default;
 }
 
+.toolbar__summary,
+.toolbar__notice {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .toolbar__summary {
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+}
+
+/* The host's figures take what the rest leaves, so they shorten before the node count does. */
+.toolbar__notice {
+  flex: 1 1 0;
+  min-width: 5rem;
 }
 
 .toolbar__stale {
