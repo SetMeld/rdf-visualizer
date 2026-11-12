@@ -74,6 +74,12 @@ counted links between types. The explorer draws them as its type overview, and c
 the graph or in the type list, calls `onOpenType` with its IRI so the app can load its members.
 `onLeave`, when given, is called by **Whole graph** or Esc with nothing focused, to return to it.
 
+To draw in the app's own theme, pass `palette` (the colours for types and links, most common type
+first; any CSS colour) and `colorScheme` (`'light'` or `'dark'`, in place of the browser's
+preference), and point the explorer's variables in `theme.css` at the app's tokens with a rule more
+specific than `.rdf-theme`. `leading` puts the app's controls at the start of the toolbar and
+`notice` after the node count; both share its one line.
+
 The layout runs in a module worker. Where the bundler does not build
 `new Worker(new URL(…, import.meta.url))`, pass `createLayoutWorker`; where no worker can start at all,
 as in a sandbox whose content security policy refuses workers, the layout runs on the page instead.

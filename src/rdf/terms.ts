@@ -36,6 +36,9 @@ export const PALETTE = [
   '#06b6d4', '#84cc16', '#f97316', '#14b8a6', '#6366f1', '#d946ef',
 ];
 
+/** The theme the explorer is drawn in. */
+export type ColorScheme = 'light' | 'dark';
+
 /** A stable color for a predicate, so the same IRI looks the same everywhere it appears. */
 export function colorFor(iri: string, palette: readonly string[] = PALETTE): string {
   let hash = 0;

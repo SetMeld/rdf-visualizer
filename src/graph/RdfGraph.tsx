@@ -3,7 +3,7 @@
 import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type Ref } from 'react';
 import cytoscape, { type Core, type ElementDefinition, type NodeSingular } from 'cytoscape';
 import type { RdfGraph as RdfGraphModel } from '../rdf/buildGraph';
-import { colorFor, PALETTE } from '../rdf/terms';
+import { colorFor, PALETTE, type ColorScheme } from '../rdf/terms';
 import { canvasColor } from './canvasColor';
 import { layoutFor } from './layout';
 import { layoutInWorker, type CreateLayoutWorker } from './layoutClient';
@@ -40,7 +40,7 @@ type Props = {
   /** The colors links are drawn in; any CSS color, resolved against the theme in force. */
   palette?: readonly string[];
   /** Changed when the theme does, to redraw the canvas in the new theme's colors. */
-  colorScheme?: 'light' | 'dark';
+  colorScheme?: ColorScheme;
   ref?: Ref<RdfGraphHandle>;
 };
 

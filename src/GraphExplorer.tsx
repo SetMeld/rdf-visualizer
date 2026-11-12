@@ -15,7 +15,7 @@ import {
   visibleGraph,
   type Focus,
 } from './rdf/focus';
-import { paintTypes } from './rdf/terms';
+import { paintTypes, type ColorScheme } from './rdf/terms';
 import { overviewTypeKey, summaryOverview, typeOverview, type TypeSummary } from './rdf/overview';
 import { TypeNav } from './TypeNav';
 
@@ -36,7 +36,7 @@ export type GraphExplorerProps = {
   /** The colors for types and links, most common type first; any CSS color. Default: the built-in palette. */
   palette?: readonly string[];
   /** The theme to draw in, overriding the OS setting that applies when this is unset. */
-  colorScheme?: 'light' | 'dark';
+  colorScheme?: ColorScheme;
   typesAsLinks: boolean;
   onTypesAsLinksChange: (typesAsLinks: boolean) => void;
   /** Changed to return to the whole graph, fitted to the screen, as when a different graph is loaded. */
