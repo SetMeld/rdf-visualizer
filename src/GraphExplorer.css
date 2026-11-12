@@ -7,12 +7,15 @@
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   font-size: 13px;
-  /* One line at any width: the controls keep their size and the figures give way. */
+}
+
+/* The explorer's toolbar is one line at any width: the controls keep their size and the figures give way. */
+.viewer > .toolbar {
   overflow: hidden;
   white-space: nowrap;
 }
 
-.toolbar > * {
+:where(.viewer > .toolbar) > * {
   flex: none;
 }
 
