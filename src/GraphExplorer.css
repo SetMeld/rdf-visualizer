@@ -7,6 +7,13 @@
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   font-size: 13px;
+  /* One line at any width: the controls keep their size and the figures give way. */
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.toolbar > * {
+  flex: none;
 }
 
 .toolbar__title {
@@ -31,6 +38,14 @@
 .toolbar button:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+.toolbar__summary,
+.toolbar__notice {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .toolbar__summary {
