@@ -59,6 +59,7 @@
 /* The host's figures take what the rest leaves, so they shorten before the node count does. */
 .toolbar__notice {
   flex: 1 1 0;
+  min-width: 5rem;
 }
 
 .toolbar__stale {
