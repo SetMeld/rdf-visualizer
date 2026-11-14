@@ -26,3 +26,17 @@ export function canvasColor(value: string, within: Element, fallback: string): s
   const hex = (channel: number) => channel.toString(16).padStart(2, '0');
   return alpha === 0 ? fallback : `#${hex(red)}${hex(green)}${hex(blue)}`;
 }
+
+/**
+ * Every color of a palette as Cytoscape can draw it, each resolved once.
+ *
+ * A graph has far more links than the palette has colors, so links take theirs from this list instead of resolving one apiece.
+ *
+ * @param palette CSS colors.
+ * @param within the element the colors are resolved against.
+ * @param fallback the color for an entry that resolves to nothing visible.
+ * @returns the palette in the same order, as `#rrggbb`.
+ */
+export function resolvePalette(palette: readonly string[], within: Element, fallback: string): readonly string[] {
+  return palette.map((color) => canvasColor(color, within, fallback));
+}

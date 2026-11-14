@@ -56,10 +56,10 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The host's figures take what the rest leaves, so they shorten before the node count does. */
+/* The host's figures give way first, down to 2rem to hover over; then the node count shortens. */
 .toolbar__notice {
-  flex: 1 1 0;
-  min-width: 5rem;
+  flex: 1 100 auto;
+  min-width: 2rem;
 }
 
 .toolbar__stale {

@@ -4,7 +4,7 @@ import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type
 import cytoscape, { type Core, type ElementDefinition, type NodeSingular } from 'cytoscape';
 import type { RdfGraph as RdfGraphModel } from '../rdf/buildGraph';
 import { colorFor, PALETTE, type ColorScheme } from '../rdf/terms';
-import { canvasColor } from './canvasColor';
+import { canvasColor, resolvePalette } from './canvasColor';
 import { layoutFor } from './layout';
 import { layoutInWorker, type CreateLayoutWorker } from './layoutClient';
 import { CARD_WIDTH, ResourceCard } from './ResourceCard';
@@ -106,6 +106,7 @@ export function RdfGraph({
     const cards = new Map<string, HTMLElement>();
     layer.querySelectorAll<HTMLElement>('[data-id]').forEach((card) => cards.set(card.dataset.id!, card));
 
+    const linkColors = resolvePalette(paletteRef.current, container, EDGE_FALLBACK);
     const elements: ElementDefinition[] = [
       ...graph.resources.map((resource) => ({
         group: 'nodes' as const,
@@ -119,7 +120,7 @@ export function RdfGraph({
           target: link.target,
           label: link.predicate.label,
           predicate: link.predicate.iri,
-          color: canvasColor(colorFor(link.predicate.iri, paletteRef.current), container, EDGE_FALLBACK),
+          color: colorFor(link.predicate.iri, linkColors),
         },
       })),
     ];
@@ -349,8 +350,9 @@ const EDGE_FALLBACK = '#6b7280';
  */
 function restyleCanvas(cy: Core, container: HTMLElement, large: boolean, palette: readonly string[]) {
   cy.style(graphStyle(container, large));
+  const linkColors = resolvePalette(palette, container, EDGE_FALLBACK);
   cy.edges().forEach((edge) => {
-    edge.data('color', canvasColor(colorFor(edge.data('predicate'), palette), container, EDGE_FALLBACK));
+    edge.data('color', colorFor(edge.data('predicate'), linkColors));
   });
 }
 
