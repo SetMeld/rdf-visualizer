@@ -136,7 +136,7 @@
 
 .sparql__field input {
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: 5px;
   border: 1px solid var(--border);
   font-family: var(--font-mono);
   font-size: 13px;
@@ -151,7 +151,7 @@
 
 .sparql__field--query .editor__input {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 5px;
   padding: 8px;
   font-weight: 400;
 }
