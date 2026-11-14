@@ -336,9 +336,17 @@ function fitView(cy: Core) {
   }
 }
 
+/** The link color used when a palette entry cannot be resolved to a color. */
 const EDGE_FALLBACK = '#6b7280';
 
-/** Every color Cytoscape is given is hex: the tokens are resolved against the theme in force now. */
+/**
+ * Draws the canvas again in the theme in force now: every color Cytoscape is given is hex.
+ *
+ * @param cy the canvas to restyle.
+ * @param container the element whose tokens are resolved.
+ * @param large whether the graph is drawn with straight, unlabelled links.
+ * @param palette the colors links are drawn in.
+ */
 function restyleCanvas(cy: Core, container: HTMLElement, large: boolean, palette: readonly string[]) {
   cy.style(graphStyle(container, large));
   cy.edges().forEach((edge) => {

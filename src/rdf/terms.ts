@@ -39,7 +39,13 @@ export const PALETTE = [
 /** The theme the explorer is drawn in. */
 export type ColorScheme = 'light' | 'dark';
 
-/** A stable color for a predicate, so the same IRI looks the same everywhere it appears. */
+/**
+ * A stable color for a predicate, so the same IRI looks the same everywhere it appears.
+ *
+ * @param iri the predicate.
+ * @param palette the colors to choose from.
+ * @returns one entry of `palette`.
+ */
 export function colorFor(iri: string, palette: readonly string[] = PALETTE): string {
   let hash = 0;
   for (let i = 0; i < iri.length; i += 1) {
@@ -48,7 +54,13 @@ export function colorFor(iri: string, palette: readonly string[] = PALETTE): str
   return palette[hash % palette.length];
 }
 
-/** `typeColors` in `palette`'s colors: the types come most common first, so the main ones never clash. */
+/**
+ * `typeColors` in `palette`'s colors: the types come most common first, so the main ones never clash.
+ *
+ * @param typeColors a color per type IRI, most common type first.
+ * @param palette the colors to use, repeated past its end.
+ * @returns the same types, each with its new color.
+ */
 export function paintTypes(typeColors: Record<string, string>, palette: readonly string[]): Record<string, string> {
   return Object.fromEntries(Object.keys(typeColors).map((iri, i) => [iri, palette[i % palette.length]]));
 }

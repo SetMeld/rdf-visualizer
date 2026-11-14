@@ -3,6 +3,11 @@
  *
  * Cytoscape paints on a canvas and parses neither custom properties nor `oklch`, so the browser
  * resolves the color and a canvas reads it back.
+ *
+ * @param value any CSS color, including `var()` and `oklch`.
+ * @param within the element the color is resolved against.
+ * @param fallback the color returned when `value` resolves to nothing visible.
+ * @returns the color as `#rrggbb`, or `fallback`.
  */
 export function canvasColor(value: string, within: Element, fallback: string): string {
   const document = within.ownerDocument;
