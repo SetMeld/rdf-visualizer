@@ -29,7 +29,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .rdf-theme {
+  .rdf-theme:not([data-color-scheme]) {
     --bg: #121317;
     --surface: #1a1b21;
     --border: #2b2d36;
@@ -51,6 +51,35 @@
     --edge-label-bg: #16171c;
     --shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
   }
+}
+
+/* A host that sets the theme itself overrides the OS setting. */
+.rdf-theme[data-color-scheme='light'] {
+  color-scheme: light;
+}
+
+.rdf-theme[data-color-scheme='dark'] {
+  color-scheme: dark;
+  --bg: #121317;
+  --surface: #1a1b21;
+  --border: #2b2d36;
+  --text: #b4b8c4;
+  --text-strong: #f3f4f6;
+  --text-muted: #868b99;
+  --accent: #a78bfa;
+  --error: #f87171;
+  --error-bg: #2a1215;
+
+  --graph-bg: #16171c;
+  --graph-dot: #2a2c35;
+  --card-bg: #23242b;
+  --card-border: #363844;
+  --row-bg: #2c2d36;
+  --untyped-header: #475569;
+  --blank-header: #4b5060;
+  --edge-label: #e5e7eb;
+  --edge-label-bg: #16171c;
+  --shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
 }
 
 .rdf-theme code {

@@ -1,0 +1,42 @@
+/**
+ * A CSS color as Cytoscape can draw it: `#rrggbb`, resolved within `within`.
+ *
+ * Cytoscape paints on a canvas and parses neither custom properties nor `oklch`, so the browser
+ * resolves the color and a canvas reads it back.
+ *
+ * @param value any CSS color, including `var()` and `oklch`.
+ * @param within the element the color is resolved against.
+ * @param fallback the color returned when `value` resolves to nothing visible.
+ * @returns the color as `#rrggbb`, or `fallback`.
+ */
+export function canvasColor(value: string, within: Element, fallback: string): string {
+  const document = within.ownerDocument;
+  const probe = document.createElement('span');
+  // Not `color`, which is inherited: an undefined custom property would come back as the text color.
+  probe.style.backgroundColor = value;
+  within.appendChild(probe);
+  const computed = document.defaultView?.getComputedStyle(probe).backgroundColor ?? '';
+  probe.remove();
+
+  const context = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+  if (!computed || !context) return fallback;
+  context.fillStyle = computed;
+  context.fillRect(0, 0, 1, 1);
+  const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data;
+  const hex = (channel: number) => channel.toString(16).padStart(2, '0');
+  return alpha === 0 ? fallback : `#${hex(red)}${hex(green)}${hex(blue)}`;
+}
+
+/**
+ * Every color of a palette as Cytoscape can draw it, each resolved once.
+ *
+ * A graph has far more links than the palette has colors, so links take theirs from this list instead of resolving one apiece.
+ *
+ * @param palette CSS colors.
+ * @param within the element the colors are resolved against.
+ * @param fallback the color for an entry that resolves to nothing visible.
+ * @returns the palette in the same order, as `#rrggbb`.
+ */
+export function resolvePalette(palette: readonly string[], within: Element, fallback: string): readonly string[] {
+  return palette.map((color) => canvasColor(color, within, fallback));
+}
